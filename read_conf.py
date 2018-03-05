@@ -6,30 +6,30 @@
 import ConfigParser
 import os
 import sys
-#os.chdir("F:\\gzq\python_project")
-cf = ConfigParser.ConfigParser()
-cf.read("server.conf")
+#部署服务和端口配置文件 server.conf
+serverConf = "server.conf"
 def readConf():
+    import ConfigParser
+    cf = ConfigParser.ConfigParser()
+    cf.read(serverConf)
     serverNameDict = {}
     portDict = {}
     for serverName in cf.sections():
-        print 'serverName:%s' %serverName
+        print 'serverName:%s' % serverName
         for optins in cf.options(serverName):
             # 取服务名下的对应的配置和参数
             port = cf.get(serverName, optins)
-            print optins,port
+            print optins, port
             portDict[optins] = port
         serverNameDict[serverName] = portDict
     return serverNameDict
-    #print sys.path()
-
-
-if not os.path.exists(os.path.join(os.getcwd(), "server.conf")):
-    print os.path.join(os.getcwd(), "server.conf")
-    print "serverconf is not exists,check serverconf"
-    print """ moment :
-            [servername]
-            http_port = 8810
-            ajp_port = 8820
-            shutdown_port = 8830"""
-readConf()
+if __name__ == "__main__":
+    if not os.path.exists(os.path.join(os.getcwd(),serverConf)):
+        print "serverconf is not exists,check serverconf"
+        print """ %s like this:
+                   [servername]
+                   http_port = 8810
+                   ajp_port = 8820
+                   shutdown_port = 8830""" % serverConf
+        sys.exit()
+    print readConf()
