@@ -97,6 +97,7 @@ def execCmd(cmd):
     stdout, stderr = p.communicate()
     print 'Eexec CMD :%s' %cmd
     return stdout, stderr
+
 # 注册或注销服务
 def installServer(servername, installTag):
     bindir = os.path.join(deploymentTomcatName(servername),'bin') # 组装 TOMCAT bin 目录
@@ -140,6 +141,7 @@ def checkServer(servername):
     return True
 
 def stopServerName(servername):
+    #停止服务
     pid = getPid(servername)
     #print "ss",pid
     if pid:
@@ -155,6 +157,16 @@ def stopServerName(servername):
     else:
         print "service:%s stop sucess!" % servername
         return True
+
+def startServerName(servername,filename):
+    # 启动服务
+    call_bat = 'cmd.exe /c %s' % filename
+    print 'call bat %s' % filename
+    # stdout, stderr = exe_cmd_ssh(ssh, call_bat)
+    stdout, stderr =execCmd(call_bat)
+    if filename in stdout:
+        print 'bat name is err'
+        sys.exit(1)
 
 def conn(ip, username, passwd,):
         # ssh连接函数
@@ -205,53 +217,16 @@ def readConf():
     serverNameDict = {}
     portDict = {}
     for serverName in cf.sections():
-        print 'serverName:%s' % serverName
+        #print 'serverName:%s' % serverName
         for optins in cf.options(serverName):
             # 取服务名下的对应的配置和参数
             port = cf.get(serverName, optins)
-            print optins, port
+            #print optins, port
             portDict[optins] = port
         serverNameDict[serverName] = portDict
     return serverNameDict
 
-def list_dir(path):
-    list = os.listdir(path)
-    ser_dict = {}
-    for i in list:
-        if i.startswith("apache-tomcat-7.0.64-"):
-            service_name = i.split("apache-tomcat-7.0.64-")[-1]
-            service_name_path = os.path.join(path, i)
-            ser_dict[service_name] = service_name_path
-    return ser_dict
-
-serdict = {
-    "test1":
-               {
-                   "shutdown_port":"1288881",
-                   "http_port":"1299991",
-                   "ajp_port":"1277771",
-                 },
-    "test2":
-               {
-                   "shutdown_port":"1288882",
-                   "http_port":"1299992",
-                   "ajp_port":"1277772",
-                 },
-    "test3":
-               {
-                   "shutdown_port":"1288883",
-                   "http_port":"1299993",
-                   "ajp_port":"1277773",
-                 },
-"test11":
-               {
-                   "shutdown_port":"1288883",
-                   "http_port":"1299993",
-                   "ajp_port":"1277773",
-                 }
-}
-
-if __name__ == "__main__":
+def deploy(Tag):
     if not os.path.exists(os.path.join(os.getcwd(),serverConf)):
         print "serverconf is not exists,check serverconf"
         print """ %s like this:
@@ -316,28 +291,29 @@ if __name__ == "__main__":
     #      'b2b-activity-api':{'http_port': '8039', 'shutdown_port': '8239', 'ajp_port': '8139'},
     #      'pos-api':{'http_port': '8093', 'shutdown_port': '8135', 'ajp_port': '8012'},
     #      'shop-oss':{'http_port': '8084', 'shutdown_port': '8165', 'ajp_port': '8515'},}
-    tag = "uninstall"
     info = ""
     for serverName, portDict in serverNameDict.iteritems():
         shutdown_port = portDict["shutdown_port"]
         http_port = portDict["http_port"]
         ajp_port = portDict["ajp_port"]
-        if tag == "reinstall":
+        if Tag == "reinstall":
             #清理老的部署文件，重新部署
-            stopServerName(serverName)
-            time.sleep(1)
-            cleanFile(serverName)
-            # 从标准tomcat 复制到部署目录
-            copyBaseTomcat(serverName)
-            # 修改部署tomcat server.xml配置文件
-            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-            # 检查服务是否注册，
+            if checkServer(serverName):
+                 stopServerName(serverName)
+                 time.sleep(1)
+                 cleanFile(serverName)
+                 # 从标准tomcat 复制到部署目录
+                 copyBaseTomcat(serverName)
+                 # 修改部署tomcat server.xml配置文件
+                 changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+                 # 检查服务是否注册，
             if not checkServer(serverName):
                 installServer(serverName, 'uninstall')
                 installServer(serverName, 'install')
             else:
                 print "%s is installed" %serverName
-        elif tag =="install":
+
+        elif Tag =="install":
             # 检查服务是否注册，
             if not checkServer(serverName):
                 # 从标准tomcat 复制到部署目录
@@ -345,13 +321,64 @@ if __name__ == "__main__":
                 # 修改部署tomcat server.xml配置文件
                 changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
                 installServer(serverName, 'install')
+                if checkServer(serverName):
+                    print "server:%s install Sucess" % serverName
+                else:
+                    print "server:%s install Fail" % serverName
             else:
                 print "%s is installed" % serverName
-        elif tag == "uninstall":
-            # 清理老的部署文件，注销服务
-            stopServerName(serverName)
-            time.sleep(1)
-            installServer(serverName, 'uninstall')
-            cleanFile(serverName)
+        elif Tag == "uninstall":
+            if checkServer(serverName):
+                stopServerName(serverName)
+                installServer(serverName, 'uninstall')
+                cleanFile(serverName) # 清理老的部署文件，注销服务
+                if not checkServer(serverName):
+                    print "server:%s uninstall Sucess" % serverName
+                else:
+                    print "server:%s uninstall fail" % serverName
+            else:
+                print "server:%s not install!" % serverName
+
+
+def list_dir(path):
+    list = os.listdir(path)
+    ser_dict = {}
+    for i in list:
+        if i.startswith("apache-tomcat-7.0.64-"):
+            service_name = i.split("apache-tomcat-7.0.64-")[-1]
+            service_name_path = os.path.join(path, i)
+            ser_dict[service_name] = service_name_path
+    return ser_dict
+
+serdict = {
+    "test1":
+               {
+                   "shutdown_port":"1288881",
+                   "http_port":"1299991",
+                   "ajp_port":"1277771",
+                 },
+    "test2":
+               {
+                   "shutdown_port":"1288882",
+                   "http_port":"1299992",
+                   "ajp_port":"1277772",
+                 },
+    "test3":
+               {
+                   "shutdown_port":"1288883",
+                   "http_port":"1299993",
+                   "ajp_port":"1277773",
+                 },
+"test11":
+               {
+                   "shutdown_port":"1288883",
+                   "http_port":"1299993",
+                   "ajp_port":"1277773",
+                 }
+}
+
+if __name__ == "__main__":
+    tag = "reinstall"
+    deploy(tag)
 
 
