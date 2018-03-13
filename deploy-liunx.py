@@ -169,7 +169,7 @@ def getpidPy(serverName):
         for keys in pidDictionary.keys():
             print keys
             #tempText = keys + ':' + str(pidDictionary[keys]) + '\n'
-            print tempText
+            # print tempText
     #print("pid-%d,pname-%s" % (pid, p.name()))
 
 
