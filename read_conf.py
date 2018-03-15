@@ -14,20 +14,14 @@ def readConf(type):
     cf.read(serverConf)
     serverNameDict = {}
     portDict = {}
-    # print cf.sections()
-    # print cf.options("conf")
-    # for optin in cf.options("conf"):
-    #     print optin
-    #     print cf.get("conf",optin)
     for serverName in cf.sections():
         #print 'serverName:%s' % serverName
         for optins in cf.options(serverName):
             # 取服务名下的对应的配置和参数
             port = cf.get(serverName, optins)
-            print optins, port
-            #print portDict[optins]
             portDict[optins] = port
         serverNameDict[serverName] = portDict
+        portDict={}
     return serverNameDict
 
 if __name__ == "__main__":
