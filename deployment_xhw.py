@@ -16,16 +16,18 @@ import xml.dom.minidom
 import codecs
 from subprocess import PIPE,Popen
 
-# 部署的目录
-deploymentDir = 'D:\\programfiles\\application\\'
+# # 部署的目录
+# deploymentDir = 'D:\\programfiles\\application\\'
+# # 部署目录的前缀
+# baseDeploymentName = "apache-tomcat-7.0.64-"
+# # 基础tomcat
+# baseTomcat = "D:\\programfiles\\apache-tomcat-7.0.64-\\"
 
-# 部署目录的前缀
-baseDeploymentName = "apache-tomcat-7.0.64-"
-# 基础tomcat
-baseTomcat = "D:\\programfiles\\apache-tomcat-7.0.64-\\"
-
+# 默认部署工程目录，默认是webapps
+deploydir = "webapps"
 #部署服务和端口配置文件 server.conf
 serverConf = "server.conf"
+
 # 返回部署工程的目标目录
 def deploymentTomcatName(serverName):
     return os.path.join(deploymentDir, "%s%s") % (baseDeploymentName, serverName)
@@ -64,7 +66,7 @@ def readXml(serverName):
     return {serverName: {"shutdown_port": shutdown_port, "http_port": http_port, "ajp_port": ajp_port}}
 
 # 修改xml 配置文件
-def changeXml(serverName,shutdown_port,http_port,ajp_port,deploydir="webapps"):
+def changeXml(serverName,shutdown_port,http_port,ajp_port):
     xmlpath = os.path.join(deploymentTomcatName(serverName), "conf/server.xml")
     print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
@@ -224,11 +226,15 @@ def readConf():
             #print optins, port
             portDict[optins] = port
         serverNameDict[serverName] = portDict
+        portDict= {}
     return serverNameDict
 
+#部署主函数
 def deploy(Tag):
-    if not os.path.exists(os.path.join(os.getcwd(),serverConf)):
-        print "serverconf is not exists,check serverconf"
+    serverConfPath = os.path.exists(os.path.join(os.getcwd(),serverConf))
+    #print serverConf
+    if not serverConfPath:
+        print "serverconf is not exists,check serverconf %s "% serverConfPath
         print """ %s like this:
                    [servername]
                    http_port = 8810
@@ -237,6 +243,7 @@ def deploy(Tag):
         sys.exit()
     # 读取配置文件需要部署的服务名，根据设置的端口部署服务
     serverNameDict = readConf()
+
     # s = {
     #      'b2b-trade-api':{'http_port': '8048', 'shutdown_port': '8248', 'ajp_port': '8148'},
     #      'goods-gtin-goods-api':{'http_port': '8061', 'shutdown_port': '8805', 'ajp_port': '8008'},
@@ -293,6 +300,9 @@ def deploy(Tag):
     #      'shop-oss':{'http_port': '8084', 'shutdown_port': '8165', 'ajp_port': '8515'},}
     info = ""
     for serverName, portDict in serverNameDict.iteritems():
+        if serverName == "conf":
+            # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+            continue
         shutdown_port = portDict["shutdown_port"]
         http_port = portDict["http_port"]
         ajp_port = portDict["ajp_port"]
@@ -338,7 +348,16 @@ def deploy(Tag):
                     print "server:%s uninstall fail" % serverName
             else:
                 print "server:%s not install!" % serverName
+        else:
+            pass
 
+# 初始化 读取配置文件配置
+def _init():
+    serverConf = readConf()
+    deploymentDir = serverConf["conf"]["deploymentdir"]
+    baseDeploymentName = serverConf["conf"]["basedeploymentname"]
+    baseTomcat = serverConf["conf"]["basetomcat"]
+    return deploymentDir,baseDeploymentName,baseTomcat
 
 def list_dir(path):
     list = os.listdir(path)
@@ -350,35 +369,19 @@ def list_dir(path):
             ser_dict[service_name] = service_name_path
     return ser_dict
 
-serdict = {
-    "test1":
-               {
-                   "shutdown_port":"1288881",
-                   "http_port":"1299991",
-                   "ajp_port":"1277771",
-                 },
-    "test2":
-               {
-                   "shutdown_port":"1288882",
-                   "http_port":"1299992",
-                   "ajp_port":"1277772",
-                 },
-    "test3":
-               {
-                   "shutdown_port":"1288883",
-                   "http_port":"1299993",
-                   "ajp_port":"1277773",
-                 },
-"test11":
-               {
-                   "shutdown_port":"1288883",
-                   "http_port":"1299993",
-                   "ajp_port":"1277773",
-                 }
-}
-
 if __name__ == "__main__":
-    tag = "reinstall"
-    deploy(tag)
+    # 读取配置文件信息
+    deploymentDir, baseDeploymentName, baseTomcat = _init()
+    try:
+        tag = sys.argv[1]
+    except:
+        print "follow a agrs,install,uninstall,reinstall"
+        sys.exit()
+    #  sername  tag
+    if tag in ["install", "uninstall", "reinstall"]:
+        deploy(tag)
+    else:
+        print " only install,uninstall,reinstall"
+
 
 
