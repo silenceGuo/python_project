@@ -213,7 +213,7 @@ def writeLog(log_file,loginfo):
         with open(log_file, 'w+')as fd:
             fd.write(loginfo)
 
-# 读取配置文件设置需要部署的服务
+#读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序
 def readConf(confPath):
     cf = ConfigParser.ConfigParser()
     cf.read(confPath)
@@ -232,17 +232,6 @@ def readConf(confPath):
         portDict={}
         serverNameDict ={}
     return serverNameList
-
-# 读取启动服务顺序配置文件
-def readStartServerConf():
-    cf = ConfigParser.ConfigParser()
-    cf.read(serverStartConf)
-    serverList = []
-    for serverName in cf.sections():
-        serverList.append(serverName)
-
-    return serverList
-
 #部署主函数
 def deploy(Tag):
     serverConfPath = os.path.join(os.getcwd(),serverConf)
@@ -315,9 +304,10 @@ def deploy(Tag):
 # 初始化 读取配置文件配置
 def _init():
     serverConfPath = readConf(serverConf)
-    deploymentDir = serverConf["conf"]["deploymentdir"]
-    baseDeploymentName = serverConf["conf"]["basedeploymentname"]
-    baseTomcat = serverConf["conf"]["basetomcat"]
+    _serverConf = serverConfPath[0]
+    deploymentDir = _serverConf["conf"]["deploymentdir"]
+    baseDeploymentName = _serverConf["conf"]["basedeploymentname"]
+    baseTomcat = _serverConf["conf"]["basetomcat"]
     return deploymentDir,baseDeploymentName,baseTomcat
 
 def list_dir(path):
@@ -330,14 +320,14 @@ def list_dir(path):
             ser_dict[service_name] = service_name_path
     return ser_dict
 
-
 if __name__ == "__main__":
     # 读取配置文件信息
     #print readStartServerConf()
     #print readConf(serverConf)
-    tag = sys.argv[1]
-    deploy(tag)
     # deploymentDir, baseDeploymentName, baseTomcat = _init()
+    # tag = sys.argv[1]
+    # deploy(tag)
+    print readConf(serverStartConf)
     # try:
     #     tag = sys.argv[1]
     # except:
