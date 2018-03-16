@@ -28,6 +28,7 @@ from subprocess import PIPE,Popen
 deploydir = "webapps"
 #部署服务和端口配置文件 server.conf
 serverConf = "server.conf"
+# 启动服务顺序配置文件
 serverStartConf = "serverStart.conf"
 
 # 返回部署工程的目标目录
@@ -39,7 +40,7 @@ def copyBaseTomcat(serverName):
     try:
         shutil.copytree(baseTomcat, deploymentTomcatName(serverName))
     except Exception, e:
-        print e, "目标目录已经存在！"
+        print e, "目标目录异常！"
         sys.exit(1)
 
 def cleanFile(serverName):
@@ -213,27 +214,90 @@ def writeLog(log_file,loginfo):
         with open(log_file, 'w+')as fd:
             fd.write(loginfo)
 
-#读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序
-def readConf(confPath):
+#读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序 默认读取配置文件部署所有服务，
+def readConf(confPath,serverNAME=""):
     cf = ConfigParser.ConfigParser()
     cf.read(confPath)
     serverNameDict = {}
     serverNameList = []
     portDict = {}
-    for serverName in cf.sections():
-        #print 'serverName:%s' % serverName
-        for optins in cf.options(serverName):
-            # 取服务名下的对应的配置和参数
-            port = cf.get(serverName, optins)
+    if serverNAME:
+        try:
+            cf.options(serverNAME)
+        except Exception, e:
+            print e
+            print "serverName:%s server is not exists" %serverNAME
+            sys.exit(1)
+        for optins in cf.options(serverNAME):
+            port = cf.get(serverNAME, optins)
             portDict[optins] = port
-        serverNameDict[serverName] = portDict
-        serverNameList.append(serverNameDict)
-        #print serverNameDict
-        portDict={}
-        serverNameDict ={}
-    return serverNameList
-#部署主函数
-def deploy(Tag):
+        serverNameDict[serverNAME] = portDict
+        return serverNameDict
+    else:
+        for serverName in cf.sections():
+            #print 'serverName:%s' % serverName
+            for optins in cf.options(serverName):
+                # 取服务名下的对应的配置和参数
+                port = cf.get(serverName, optins)
+                portDict[optins] = port
+            serverNameDict[serverName] = portDict
+            serverNameList.append(serverNameDict)
+            #print serverNameDict
+            portDict={}
+            serverNameDict ={}
+        return serverNameList
+
+# 部署针对单个服务的操作 ，且配置文件中存在
+def deployForServer(Tag,serverName,portDict):
+    shutdown_port = portDict["shutdown_port"]
+    http_port = portDict["http_port"]
+    ajp_port = portDict["ajp_port"]
+    if Tag == "reinstall":
+        # 清理老的部署文件，重新部署
+        if checkServer(serverName):
+            stopServerName(serverName)
+            time.sleep(1)
+            cleanFile(serverName)
+            # 从标准tomcat 复制到部署目录
+            copyBaseTomcat(serverName)
+            # 修改部署tomcat server.xml配置文件
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            # 检查服务是否注册，
+        if not checkServer(serverName):
+            installServer(serverName, 'uninstall')
+            installServer(serverName, 'install')
+        else:
+            print "%s is installed" % serverName
+    elif Tag == "install":
+        # 检查服务是否注册，
+        if not checkServer(serverName):
+            # 从标准tomcat 复制到部署目录
+            copyBaseTomcat(serverName)
+            # 修改部署tomcat server.xml配置文件
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            installServer(serverName, 'install')
+            if checkServer(serverName):
+                print "server:%s install Sucess" % serverName
+            else:
+                print "server:%s install Fail" % serverName
+        else:
+            print "%s is installed" % serverName
+    elif Tag == "uninstall":
+        if checkServer(serverName):
+            stopServerName(serverName)
+            installServer(serverName, 'uninstall')
+            cleanFile(serverName)  # 清理老的部署文件，注销服务
+            if not checkServer(serverName):
+                print "server:%s uninstall Sucess" % serverName
+            else:
+                print "server:%s uninstall fail" % serverName
+        else:
+            print "server:%s not install!" % serverName
+    else:
+        pass
+
+#部署主函数 配置文件所有的服务部署
+def deploy(Tag,serverNAME=""):
     serverConfPath = os.path.join(os.getcwd(),serverConf)
     #print serverConfPath
     if not os.path.exists(serverConfPath):
@@ -245,70 +309,77 @@ def deploy(Tag):
                    shutdown_port = 8830""" % serverConf
         sys.exit()
     # 读取配置文件需要部署的服务名，根据设置的端口部署服务
+    if serverNAME:
+        serverNameDict = readConf(serverConfPath,serverNAME)
+        deployForServer(Tag,serverNAME, serverNameDict[serverNAME])
+        # shutdown_port = serverNameDict[serverNAME]["shutdown_port"]
+        # http_port = serverNameDict[serverNAME]["http_port"]
+        # ajp_port = serverNameDict[serverNAME]["ajp_port"]
+        sys.exit()
     serverNameList = readConf(serverConfPath)
     #print serverNameList
-    info = ""
     for serverNameDict in serverNameList:
         # print serverNameDict
         for serverName, portDict in serverNameDict.iteritems():
             if serverName == "conf":
                 # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                 continue
-            shutdown_port = portDict["shutdown_port"]
-            http_port = portDict["http_port"]
-            ajp_port = portDict["ajp_port"]
-            if Tag == "reinstall":
-                #清理老的部署文件，重新部署
-                if checkServer(serverName):
-                     stopServerName(serverName)
-                     time.sleep(1)
-                     cleanFile(serverName)
-                     # 从标准tomcat 复制到部署目录
-                     copyBaseTomcat(serverName)
-                     # 修改部署tomcat server.xml配置文件
-                     changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-                     # 检查服务是否注册，
-                if not checkServer(serverName):
-                    installServer(serverName, 'uninstall')
-                    installServer(serverName, 'install')
-                else:
-                    print "%s is installed" %serverName
-            elif Tag =="install":
-                # 检查服务是否注册，
-                if not checkServer(serverName):
-                    # 从标准tomcat 复制到部署目录
-                    copyBaseTomcat(serverName)
-                    # 修改部署tomcat server.xml配置文件
-                    changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-                    installServer(serverName, 'install')
-                    if checkServer(serverName):
-                        print "server:%s install Sucess" % serverName
-                    else:
-                        print "server:%s install Fail" % serverName
-                else:
-                    print "%s is installed" % serverName
-            elif Tag == "uninstall":
-                if checkServer(serverName):
-                    stopServerName(serverName)
-                    installServer(serverName, 'uninstall')
-                    cleanFile(serverName) # 清理老的部署文件，注销服务
-                    if not checkServer(serverName):
-                        print "server:%s uninstall Sucess" % serverName
-                    else:
-                        print "server:%s uninstall fail" % serverName
-                else:
-                    print "server:%s not install!" % serverName
-            else:
-                pass
+            deployForServer(Tag,serverName,portDict)
+            # shutdown_port = portDict["shutdown_port"]
+            # http_port = portDict["http_port"]
+            # ajp_port = portDict["ajp_port"]
+            # if Tag == "reinstall":
+            #     #清理老的部署文件，重新部署
+            #     if checkServer(serverName):
+            #          stopServerName(serverName)
+            #          time.sleep(1)
+            #          cleanFile(serverName)
+            #          # 从标准tomcat 复制到部署目录
+            #          copyBaseTomcat(serverName)
+            #          # 修改部署tomcat server.xml配置文件
+            #          changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            #          # 检查服务是否注册，
+            #     if not checkServer(serverName):
+            #         installServer(serverName, 'uninstall')
+            #         installServer(serverName, 'install')
+            #     else:
+            #         print "%s is installed" %serverName
+            # elif Tag =="install":
+            #     # 检查服务是否注册，
+            #     if not checkServer(serverName):
+            #         # 从标准tomcat 复制到部署目录
+            #         copyBaseTomcat(serverName)
+            #         # 修改部署tomcat server.xml配置文件
+            #         changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            #         installServer(serverName, 'install')
+            #         if checkServer(serverName):
+            #             print "server:%s install Sucess" % serverName
+            #         else:
+            #             print "server:%s install Fail" % serverName
+            #     else:
+            #         print "%s is installed" % serverName
+            # elif Tag == "uninstall":
+            #     if checkServer(serverName):
+            #         stopServerName(serverName)
+            #         installServer(serverName, 'uninstall')
+            #         cleanFile(serverName) # 清理老的部署文件，注销服务
+            #         if not checkServer(serverName):
+            #             print "server:%s uninstall Sucess" % serverName
+            #         else:
+            #             print "server:%s uninstall fail" % serverName
+            #     else:
+            #         print "server:%s not install!" % serverName
+            # else:
+            #     pass
 
-# 初始化 读取配置文件配置
+# 初始化 读取配置文件配置 真的部署目录和 基础部署文件的设置
 def _init():
     serverConfPath = readConf(serverConf)
     _serverConf = serverConfPath[0]
     deploymentDir = _serverConf["conf"]["deploymentdir"]
     baseDeploymentName = _serverConf["conf"]["basedeploymentname"]
     baseTomcat = _serverConf["conf"]["basetomcat"]
-    return deploymentDir,baseDeploymentName,baseTomcat
+    return deploymentDir, baseDeploymentName, baseTomcat
 
 def list_dir(path):
     list = os.listdir(path)
@@ -324,20 +395,24 @@ if __name__ == "__main__":
     # 读取配置文件信息
     #print readStartServerConf()
     #print readConf(serverConf)
-    # deploymentDir, baseDeploymentName, baseTomcat = _init()
-    # tag = sys.argv[1]
-    # deploy(tag)
-    print readConf(serverStartConf)
-    # try:
-    #     tag = sys.argv[1]
-    # except:
-    #     print "follow a agrs,install,uninstall,reinstall"
-    #     sys.exit()
-    # #  sername  tag
-    # if tag in ["install", "uninstall", "reinstall"]:
-    #     deploy(tag)
-    # else:
-    #     print " only install,uninstall,reinstall"
+    deploymentDir, baseDeploymentName, baseTomcat = _init()
+    if len(sys.argv) == 2:
+        tag = sys.argv[1]
+        if tag in ["install", "uninstall", "reinstall"]:
+            deploy(tag)
+        else:
+            print " only install,uninstall,reinstall"
+    elif len(sys.argv) == 3:
+        tag = sys.argv[1]
+        serverName = sys.argv[2]
+        if tag in ["install", "uninstall", "reinstall"]:
+            deploy(tag, serverName)
+        else:
+            print " only install,uninstall,reinstall"
+    else:
+        print "Follow One agrs,install|uninstall|reinstall"
+        print "Follow Two agrs,ServerNAME install|uninstall|reinstall"
+        sys.exit()
 
 
 
