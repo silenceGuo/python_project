@@ -298,8 +298,8 @@ def deployForServer(Tag,serverName,portDict):
 
 #部署主函数 配置文件所有的服务部署
 def deploy(Tag,serverNAME=""):
-    serverConfPath = os.path.join(os.getcwd(),serverConf)
-    #print serverConfPath
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
     if not os.path.exists(serverConfPath):
         print "serverconf is not exists,check serverconf %s "% serverConfPath
         print """ %s like this:
