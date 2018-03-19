@@ -7,7 +7,7 @@ import re
 import sys
 reload(sys)
 sys.setdefaultencoding("utf-8")
-# 自动登陆jenkins 点击打包任务　
+# 自动登陆jenkins 点击指定视图下的打包任务　
 from selenium import webdriver
 # import scrapy
 # from selenium.webdriver.common.by import By
