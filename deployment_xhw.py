@@ -17,16 +17,9 @@ import codecs
 import ConfigParser
 from subprocess import PIPE,Popen
 
-# # 部署的目录
-# deploymentDir = 'D:\\programfiles\\application\\'
-# # 部署目录的前缀
-# baseDeploymentName = "apache-tomcat-7.0.64-"
-# # 基础tomcat
-# baseTomcat = "D:\\programfiles\\apache-tomcat-7.0.64-\\"
-
 # 默认部署工程目录，默认是webapps
 deploydir = "webapps"
-#部署服务和端口配置文件 server.conf
+#部署服务和端口配置文件server.conf,在同一目录下
 serverConf = "server.conf"
 # 启动服务顺序配置文件
 serverStartConf = "serverStart.conf"
@@ -325,52 +318,6 @@ def deploy(Tag,serverNAME=""):
                 # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                 continue
             deployForServer(Tag,serverName,portDict)
-            # shutdown_port = portDict["shutdown_port"]
-            # http_port = portDict["http_port"]
-            # ajp_port = portDict["ajp_port"]
-            # if Tag == "reinstall":
-            #     #清理老的部署文件，重新部署
-            #     if checkServer(serverName):
-            #          stopServerName(serverName)
-            #          time.sleep(1)
-            #          cleanFile(serverName)
-            #          # 从标准tomcat 复制到部署目录
-            #          copyBaseTomcat(serverName)
-            #          # 修改部署tomcat server.xml配置文件
-            #          changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-            #          # 检查服务是否注册，
-            #     if not checkServer(serverName):
-            #         installServer(serverName, 'uninstall')
-            #         installServer(serverName, 'install')
-            #     else:
-            #         print "%s is installed" %serverName
-            # elif Tag =="install":
-            #     # 检查服务是否注册，
-            #     if not checkServer(serverName):
-            #         # 从标准tomcat 复制到部署目录
-            #         copyBaseTomcat(serverName)
-            #         # 修改部署tomcat server.xml配置文件
-            #         changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-            #         installServer(serverName, 'install')
-            #         if checkServer(serverName):
-            #             print "server:%s install Sucess" % serverName
-            #         else:
-            #             print "server:%s install Fail" % serverName
-            #     else:
-            #         print "%s is installed" % serverName
-            # elif Tag == "uninstall":
-            #     if checkServer(serverName):
-            #         stopServerName(serverName)
-            #         installServer(serverName, 'uninstall')
-            #         cleanFile(serverName) # 清理老的部署文件，注销服务
-            #         if not checkServer(serverName):
-            #             print "server:%s uninstall Sucess" % serverName
-            #         else:
-            #             print "server:%s uninstall fail" % serverName
-            #     else:
-            #         print "server:%s not install!" % serverName
-            # else:
-            #     pass
 
 # 初始化 读取配置文件配置部署目录和基础部署文件的设置
 def _init():
