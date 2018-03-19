@@ -372,13 +372,17 @@ def deploy(Tag,serverNAME=""):
             # else:
             #     pass
 
-# 初始化 读取配置文件配置 真的部署目录和 基础部署文件的设置
+# 初始化 读取配置文件配置部署目录和基础部署文件的设置
 def _init():
-    serverConfPath = readConf(serverConf)
-    _serverConf = serverConfPath[0]
+    #serverConfPath = os.path.join(os.getcwd(), serverConf)
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    serverConfList = readConf(serverConfPath)
+    _serverConf = serverConfList[0]
     deploymentDir = _serverConf["conf"]["deploymentdir"]
     baseDeploymentName = _serverConf["conf"]["basedeploymentname"]
     baseTomcat = _serverConf["conf"]["basetomcat"]
+    # serverConf = _serverConf["conf"]["serverConf"]
     return deploymentDir, baseDeploymentName, baseTomcat
 
 def list_dir(path):
@@ -395,11 +399,14 @@ if __name__ == "__main__":
     # 读取配置文件信息
     #print readStartServerConf()
     #print readConf(serverConf)
+
     deploymentDir, baseDeploymentName, baseTomcat = _init()
     if len(sys.argv) == 2:
         tag = sys.argv[1]
+        print tag
         if tag in ["install", "uninstall", "reinstall"]:
-            deploy(tag)
+            pass
+            # deploy(tag)
         else:
             print " only install,uninstall,reinstall"
     elif len(sys.argv) == 3:
