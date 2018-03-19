@@ -403,10 +403,8 @@ if __name__ == "__main__":
     deploymentDir, baseDeploymentName, baseTomcat = _init()
     if len(sys.argv) == 2:
         tag = sys.argv[1]
-        print tag
         if tag in ["install", "uninstall", "reinstall"]:
-            pass
-            # deploy(tag)
+            deploy(tag)
         else:
             print " only install,uninstall,reinstall"
     elif len(sys.argv) == 3:
