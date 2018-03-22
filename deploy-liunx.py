@@ -66,8 +66,6 @@ def sendWarToNode(ip, serverName):
         print stderr
         print "check local path,or remote path!"
         sys.exit(1)
-
-
     # time.sleep(30)
 def getPid(servername):
     deploymentPath = joinPathName(deploymentAppSerDir,"%s%s") % (tomcatPrefix, servername)
