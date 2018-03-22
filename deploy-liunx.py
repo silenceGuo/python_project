@@ -61,7 +61,12 @@ def sendWarToNode(ip, serverName):
     loaclPath = os.path.join(jenkinsUploadDir, serverName)
     remotePath = os.path.join(jenkinsUploadDir, serverName)
     cmd = "scp  -C %s/ROOT.war  root@%s:%s/ROOT.war" % (loaclPath, ip, remotePath)
-    execSh(cmd)
+    stdout,stderr = execSh(cmd)
+    if stderr:
+        print stderr
+        print "check local path,or remote path!"
+        sys.exit(1)
+
 
     # time.sleep(30)
 def getPid(servername):
@@ -480,18 +485,18 @@ if __name__ == "__main__":
     # else:
     #     print "NO such as server，please check:%s" % servername
 
-    # try:
-    #     Tag = sys.argv[1]
-    #     #servername = sys.argv[2]
-    # except:
-    #     print "follow"
-    #     sys.exit()
-    # if len(sys.argv) == 2:
-    #     Tag = sys.argv[1]
-    #     Main(Tag)
-    # elif len(sys.argv) == 3:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     Main(Tag, serName)
+    try:
+        Tag = sys.argv[1]
+        #servername = sys.argv[2]
+    except:
+        print "follow"
+        sys.exit()
+    if len(sys.argv) == 2:
+        Tag = sys.argv[1]
+        Main(Tag)
+    elif len(sys.argv) == 3:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        Main(Tag, serName)
     sendWarToNode("192.168.0.159","upload")
 
