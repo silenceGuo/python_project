@@ -117,8 +117,8 @@ def update(serverName):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     war = readConf(serverConfPath,serverName)[serverName]["war"]
-    deployWarPath = joinPathName(deploymentDir, "tomcat-%s/webapps/ROOT.war") % serverName
-    deployWarPathRoot = joinPathName(deploymentDir, "tomcat-%s/webapps/ROOT") % serverName
+    deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
+    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
     jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s") % war
     if os.path.exists(deployWarPath):
         backWar(serverName)
@@ -153,7 +153,7 @@ def startServer(serverName):
     startSh = joinPathName(deploymentAppSerDir, "%s%s", "bin/startup.sh") % (tomcatPrefix,serverName)
     binDir = joinPathName(deploymentAppSerDir, "%s%s", "bin/*") % (tomcatPrefix,serverName)
     deployDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix,serverName)
-    deployWarPathRoot = joinPathName(deploymentDir, "tomcat-%s/webapps/ROOT") % serverName
+    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
     #cmd = "su - tomcat %s" %startSh
     chmodCmd = "chmod 755 -R %s" % binDir
     chmodCmd2 = "chmod 755 -R %s" % deployDir
@@ -242,9 +242,9 @@ def copyBaseTomcat(serverName):
         sys.exit(1)
 
 # 修改xml 配置文件
-def changeXml(serverName,shutdown_port="8128",http_port="8083",ajp_port="8218"):
+def changeXml(serverName,shutdown_port="8128",http_port="8083"):
     deploymentDirTmp = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix, serverName)
-    deploydir = joinPathName(deploymentDir,"%s%s","webapps")% ("tomcat-",serverName)
+    deploydir = joinPathName(deploymentDir,"%s%s","webapps/")% ("tomcat7-",serverName)
     xmlpath = os.path.join(deploymentDirTmp, "conf/server.xml")
     # print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
@@ -256,61 +256,12 @@ def changeXml(serverName,shutdown_port="8128",http_port="8083",ajp_port="8218"):
         appdeploy = i.getElementsByTagName("Host")
         appdeploy[0].setAttribute("appBase", deploydir) #部署目录 默认为webapps
         connector[0].setAttribute("port", http_port)  # http port
-        connector[1].setAttribute("port", ajp_port)  # ajp port
+        #connector[1].setAttribute("port", ajp_port)  # ajp port
     outfile = file(xmlpath, 'w')
     write = codecs.lookup("utf-8")[3](outfile)
     domtree.writexml(write, addindent=" ", encoding='utf-8')
     write.close()
-#
-# def main(serverName, serverNameWar,**port):
-#
-#     # 部署tomcat 工程 目录
-#     deploymentAppDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix, serverName)
-#
-#     # 部署的war包
-#     deployRootWar = joinPathName(deploymentDir, "tomcat-%s", "ROOT.war") % serverName
-#     deployRoot = joinPathName(deploymentDir, "tomcat-%s") % serverName
-#
-#     if not os.path.exists(deployRoot):
-#         os.makedirs(deployRoot)
-#     # 备份war包路径
-#     bakdeployRootWar = joinPathName(deploymentDirBak, serverName, "ROOT.%s.war") % (time.strftime("%Y-%m-%d-%H%M%S"))
-#     bakdeployRoot = joinPathName(deploymentDirBak, serverName)
-#
-#     # jenkins 上传目录
-#     if not os.path.exists(joinPathName(jenkinsUploadDir,serverName)):
-#         os.makedirs(joinPathName(jenkinsUploadDir,serverName))
-#
-#     uploadDeployWar = joinPathName(jenkinsUploadDir,serverName, serverNameWar)
-#     # 部署路径
-#     deployDir = joinPathName(deploymentDir, "tomcat-%s", "ROOT/") % serverName
-#     # 备份原部署文件
-#     if not os.path.exists(bakdeployRoot):
-#         # 创建备份目录
-#         print "creat bak dir"
-#         os.makedirs(bakdeployRoot)
-#     if os.path.exists(deployRootWar):
-#         print "bak war"
-#         copyFile(deployRootWar, bakdeployRootWar)
-#     # 部署新的工程目录
-#     if not os.path.exists(deploymentAppDir):
-#         print "init deployment dir"
-#         os.makedirs(deploymentAppSerDir)
-#         copyBaseTomcat(serverName)
-#         changeXml(serverName, **port)
-#     # 复制新war包到部署目录
-#     copyFile(uploadDeployWar, deployRootWar)
-#     stopServer(serverName)
-#     # 清理部署工程缓存 针对upload特殊处理 除resouces 其他都清理，resouces是软连接 到其他目录的
-#     if serverName == "upload":
-#         cleanCachUpload(deployDir)
-#     else:
-#         if os.path.exists(deployDir):
-#             shutil.rmtree(deployDir)
-#     unzipWar(deployRootWar, deployDir)
-#     startServer(serverName)
 
-#读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序 默认读取配置文件部署所有服务，
 def readConf(confPath,serverNAME=""):
     cf = ConfigParser.ConfigParser()
     cf.read(confPath)
@@ -356,10 +307,10 @@ def checkServer(serverName):
 def deployForServer(Tag, serverName, portDict):
     shutdown_port = portDict["shutdown_port"]
     http_port = portDict["http_port"]
-    ajp_port = portDict["ajp_port"]
+    #ajp_port = portDict["ajp_port"]
     jenkinsUploadDirServer = joinPathName(jenkinsUploadDir,"%s") % serverName
     deployDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix, serverName)  # 部署工程目录
-    deployRoot = joinPathName(deploymentDir, "tomcat7-%s", "webapps") % serverName
+    deployRoot = joinPathName(deploymentDir, "tomcat7-%s", "webapps/") % serverName
     bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)  # 备份目录
     if not os.path.exists(deployRoot):
         os.makedirs(deployRoot)
@@ -378,7 +329,7 @@ def deployForServer(Tag, serverName, portDict):
             # 从标准tomcat 复制到部署目录
             copyBaseTomcat(serverName)
             # 修改部署tomcat server.xml配置文件
-            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port)
             execSh(chownCmd)
         else:
             print "%s is not installed" % serverName
@@ -441,9 +392,9 @@ def deploy(Tag,serverNAME=""):
 
 def backWar(serverName):
     # 部署的war包
-    deployRootWar = joinPathName(deploymentDir, "tomcat-%s", "webapps","ROOT.war") % serverName
+    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
     # 备份war包路径
-    bakdeployRootWar = joinPathName(deploymentDir, "tomcat-%s","bak-tomcat-%s", "ROOT.%s.war") % (serverName,serverName, time.strftime("%Y-%m-%d-%H%M%S"))
+    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s","bak-tomcat7-%s", "ROOT.%s.war") % (serverName,serverName, time.strftime("%Y-%m-%d-%H%M%S"))
     copyFile(deployRootWar, bakdeployRootWar)
 
 def Main(Tag,serverNAME=""):
@@ -482,7 +433,6 @@ if __name__ == "__main__":
     #         main(servername,war,**portdict)
     # else:
     #     print "NO such as server，please check:%s" % servername
-
     try:
         Tag = sys.argv[1]
         #servername = sys.argv[2]
@@ -496,5 +446,5 @@ if __name__ == "__main__":
         Tag = sys.argv[1]
         serName = sys.argv[2]
         Main(Tag, serName)
-    sendWarToNode("192.168.0.159","upload")
+    #sendWarToNode("192.168.0.159","upload")
 
