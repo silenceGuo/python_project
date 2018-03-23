@@ -21,10 +21,9 @@ import ConfigParser
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
-serverConf = "server_liunx.conf" # 部署配置文件
+serverConf = "server_liunx.conf"  # 部署配置文件
+uploadConf = "upload_liunx.conf"  # 部署配置文件
 jenkinsUploadDir = "/home/jenkinsUpload/"  # jenkins 上传基础目录
-#jenkinsUploadDirBak = "/home/jenkinsUploadBak/"  # 打包上传的目录备份
-#deploymentDirBak = "/home/deployDirBak/"
 deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
 baseTomcat = "/home/apache-tomcat-7.0.64-/"
@@ -57,16 +56,47 @@ def copyFile(sourfile,disfile):
 def reName():
     pass
 
-def sendWarToNode(ip, serverName):
-    loaclPath = os.path.join(jenkinsUploadDir, serverName)
+# 上传分发 方法 前提是设置好目标服务器无密码登录
+def sendWarToNode(serverName):
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    warName = readConf(serverConfPath, serverName)[serverName]["war"]
+    try :
+        ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+    except:
+        print "sss"
+    loaclPath = os.path.join(jenkinsUploadDir, serverName,warName)
     remotePath = os.path.join(jenkinsUploadDir, serverName)
-    cmd = "scp  -C %s/ROOT.war  root@%s:%s/ROOT.war" % (loaclPath, ip, remotePath)
-    stdout,stderr = execSh(cmd)
-    if stderr:
-        print stderr
-        print "check local path,or remote path!"
-        sys.exit(1)
-    # time.sleep(30)
+    if not os.path.exists(os.path.join(jenkinsUploadDir, serverName)):
+        os.mkdir(os.path.join(jenkinsUploadDir, serverName))
+    cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+    for ip in ipList:
+        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+        stdout,stderr = execSh(cmd)
+        if stderr:
+            print stderr
+            print "check local path,or remote path!"
+            continue
+            #sys.exit(1)
+        # time.sleep(30)
+
+def sendWarToNodeMain(serverName):
+    ser_list = readConf(serverConf)
+    for dict in ser_list:
+        for serName, portDict in dict.iteritems():
+             #print serName, portDict["ip"]
+             try :
+                 portDict["ip"]
+             except:
+                 continue
+            #  warName = portDict["war"]
+            # # print serName, portDict["ip"].split(",")
+             if serName == serverName:
+                 for ip in portDict["ip"].split(","):
+                     #print ip
+                     sendWarToNode(serName)
+
+
 def getPid(servername):
     deploymentPath = joinPathName(deploymentAppSerDir,"%s%s") % (tomcatPrefix, servername)
     #cmd = "pgrep -f %s" % servername
@@ -161,8 +191,6 @@ def startServer(serverName):
     chownCmd = "chown -R tomcat:tomcat %s" % deployDir
     chownCmd2 = "chown -R tomcat:tomcat %s" % binDir
     chownCmd3 = "chown -R tomcat:tomcat %s" % deployWarPathRoot
-
-
     # 授权
     #print "chmod dir 755 %s" % binDir
     execSh(chmodCmd)
@@ -173,21 +201,17 @@ def startServer(serverName):
     execSh(chownCmd2)
     execSh(chownCmd3)
     cmd = "su - tomcat %s" % startSh
-   # "su - tomcat /usr/local/tomcat7_$element/bin/startup.sh"
-    #cmd = "nohup %s &" % startSh
-    """         chown -R tomcat:tomcat /usr/local/tomcat7_$element
-                chown -R tomcat:tomcat /home/wwwroot/xhw-$element
-                chmod -R 755 /usr/local/tomcat7_$element/bin/*
-                chmod -R 755 /home/wwwroot/xhw-$element
-    """
-    if not getPid(serverName):
+    pid = getPid(serverName)
+    if not pid:
         print "Start Server:%s" % serverName
         execSh(cmd)
-    time.sleep(10)
-    if getPid(serverName):
-        print "Server:%s,Sucess pid:%s" % (serverName, getPid(serverName))
+        time.sleep(10)
+        if getPid(serverName):
+            print "Server:%s,Sucess pid:%s" % (serverName, getPid(serverName))
+        else:
+            print "Server:%s,is not running" % serverName
     else:
-        print "Server:%s,is not running" % serverName
+        print "Server:%s,Sucessed pid:%s" % (serverName, pid)
 
 def startMain(serverName):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
@@ -340,7 +364,7 @@ def deployForServer(Tag, serverName, portDict):
             # 从标准tomcat 复制到部署目录
             copyBaseTomcat(serverName)
             # 修改部署tomcat server.xml配置文件
-            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port)
             execSh(chownCmd)
             if checkServer(serverName):
                 print "server:%s install Sucess" % serverName
@@ -424,27 +448,26 @@ def Main(Tag,serverNAME=""):
         deploy(Tag, serverNAME)
 
 if __name__ == "__main__":
-    #
-    # servername = sys.argv[1]
-    #
-    # if server_dict. has_key(servername):
-    #     for war,portdict in server_dict[servername].iteritems():
-    #         print war,portdict
-    #         main(servername,war,**portdict)
+
+    # try:
+    #     Tag = sys.argv[1]
+    #     #servername = sys.argv[2]
+    # except:
+    #     print "follow"
+    #     sys.exit()
+    # if len(sys.argv) == 2:
+    #     Tag = sys.argv[1]
+    #     Main(Tag)
+    # elif len(sys.argv) == 3:
+    #     Tag = sys.argv[1]
+    #     serName = sys.argv[2]
+    #     Main(Tag, serName)
     # else:
-    #     print "NO such as server，please check:%s" % servername
-    try:
-        Tag = sys.argv[1]
-        #servername = sys.argv[2]
-    except:
-        print "follow"
-        sys.exit()
-    if len(sys.argv) == 2:
-        Tag = sys.argv[1]
-        Main(Tag)
-    elif len(sys.argv) == 3:
-        Tag = sys.argv[1]
-        serName = sys.argv[2]
-        Main(Tag, serName)
+    #     print "Follow One or Two agrs,install|uninstall|reinstall|update|start|stop|restart"
+    sendWarToNode("b2b-activity-api")
     #sendWarToNode("192.168.0.159","upload")
+
+    # serverName =""
+    # serverName =""
+    # sendWarToNodeMain(serverName)
 
