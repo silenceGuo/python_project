@@ -62,7 +62,7 @@ def readXml(serverName):
     return {serverName: {"shutdown_port": shutdown_port, "http_port": http_port, "ajp_port": ajp_port}}
 
 # 修改xml 配置文件
-def changeXml(serverName,shutdown_port,http_port,ajp_port):
+def changeXml(serverName,shutdown_port,http_port):
     xmlpath = os.path.join(deploymentTomcatName(serverName), "conf/server.xml")
     print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
@@ -80,7 +80,7 @@ def changeXml(serverName,shutdown_port,http_port,ajp_port):
         #connector[0].setAttribute("URIEnconding", "UTF-8")  # http port
         #connector[0].setAttribute("proxyPort", "443")  #proxyPort
         # connector[0].setAttribute("useBodyEncodingForURI", "true")  # http port
-        connector[1].setAttribute("port", ajp_port)  # ajp port
+        #connector[1].setAttribute("port", ajp_port)  # ajp port
     outfile = file(xmlpath, 'w')
     write = codecs.lookup("utf-8")[3](outfile)
     domtree.writexml(write, addindent=" ", encoding='utf-8')
@@ -240,11 +240,11 @@ def readConf(confPath,serverNAME=""):
             serverNameDict ={}
         return serverNameList
 
-# 部署针对单个服务的操作 ，且配置文件中存在
-def deployForServer(Tag,serverName,portDict):
+    # 部署针对单个服务的操作 ，且配置文件中存在
+def deployForServer(Tag, serverName, portDict):
     shutdown_port = portDict["shutdown_port"]
     http_port = portDict["http_port"]
-    ajp_port = portDict["ajp_port"]
+    #ajp_port = portDict["ajp_port"]
     if Tag == "reinstall":
         # 清理老的部署文件，重新部署
         if checkServer(serverName):
@@ -254,20 +254,18 @@ def deployForServer(Tag,serverName,portDict):
             # 从标准tomcat 复制到部署目录
             copyBaseTomcat(serverName)
             # 修改部署tomcat server.xml配置文件
-            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-            # 检查服务是否注册，
-        if not checkServer(serverName):
-            installServer(serverName, 'uninstall')
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port)
             installServer(serverName, 'install')
         else:
-            print "%s is installed" % serverName
+            print "%s is not installed" % serverName
+            print "First install %s" % serverName
     elif Tag == "install":
         # 检查服务是否注册，
         if not checkServer(serverName):
             # 从标准tomcat 复制到部署目录
             copyBaseTomcat(serverName)
             # 修改部署tomcat server.xml配置文件
-            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+            changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port)
             installServer(serverName, 'install')
             if checkServer(serverName):
                 print "server:%s install Sucess" % serverName
@@ -298,7 +296,6 @@ def deploy(Tag,serverNAME=""):
         print """ %s like this:
                    [servername]
                    http_port = 8810
-                   ajp_port = 8820
                    shutdown_port = 8830""" % serverConf
         sys.exit()
     # 读取配置文件需要部署的服务名，根据设置的端口部署服务
