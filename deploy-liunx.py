@@ -61,18 +61,23 @@ def sendWarToNode(serverName):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     warName = readConf(serverConfPath, serverName)[serverName]["war"]
+    # ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
     try :
         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
     except:
-        print "sss"
+        print "Check Config File"
+        sys.exit()
     loaclPath = os.path.join(jenkinsUploadDir, serverName,warName)
     remotePath = os.path.join(jenkinsUploadDir, serverName)
-    if not os.path.exists(os.path.join(jenkinsUploadDir, serverName)):
-        os.mkdir(os.path.join(jenkinsUploadDir, serverName))
-    cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+    if not os.path.exists(remotePath):
+        os.mkdir(remotePath)
+#    cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+    if not os.path.exists(loaclPath):
+        print " File:%s is not exits" % loaclPath
+        sys.exit()
     for ip in ipList:
         cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
-        stdout,stderr = execSh(cmd)
+        stdout, stderr = execSh(cmd)
         if stderr:
             print stderr
             print "check local path,or remote path!"
@@ -82,20 +87,14 @@ def sendWarToNode(serverName):
 
 def sendWarToNodeMain(serverName):
     ser_list = readConf(serverConf)
-    for dict in ser_list:
-        for serName, portDict in dict.iteritems():
-             #print serName, portDict["ip"]
-             try :
-                 portDict["ip"]
-             except:
-                 continue
-            #  warName = portDict["war"]
-            # # print serName, portDict["ip"].split(",")
-             if serName == serverName:
-                 for ip in portDict["ip"].split(","):
-                     #print ip
-                     sendWarToNode(serName)
-
+    #print ser_list
+    if serverName:
+        sendWarToNode(serverName)
+    else:
+        for dict in ser_list:
+            for serName, portDict in dict.iteritems():
+                print serName
+                sendWarToNode(serName)
 
 def getPid(servername):
     deploymentPath = joinPathName(deploymentAppSerDir,"%s%s") % (tomcatPrefix, servername)
@@ -149,7 +148,7 @@ def update(serverName):
     war = readConf(serverConfPath,serverName)[serverName]["war"]
     deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
     deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
-    jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s") % war
+    jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName,war)
     if os.path.exists(deployWarPath):
         backWar(serverName)
     copyFile(jenkinsUploadDirWar, deployWarPath)
@@ -414,12 +413,70 @@ def deploy(Tag,serverNAME=""):
                 continue
             deployForServer(Tag,serverName,portDict)
 
+def listDirFile(path):
+    os.listdir(path)
+
+def getVersion(path):
+    versionIdList = []
+    for i in os.listdir(path):
+        if i.split(".")[0] == "ROOT":
+            versionId = i.split(".")[1]
+            versionIdList.append(versionId)
+    if not versionIdList:
+        return ["0"]
+    return versionSort(versionIdList)  # 返回版本号 升序列表
+
 def backWar(serverName):
     # 部署的war包
     deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
     # 备份war包路径
-    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s","bak-tomcat7-%s", "ROOT.%s.war") % (serverName,serverName, time.strftime("%Y-%m-%d-%H%M%S"))
-    copyFile(deployRootWar, bakdeployRootWar)
+    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    # versionId = int(getVersion(bakdeployRoot)[-1])+int(1)
+    versionId = int(getVersion(bakdeployRoot)[-1].split("-")[-1].split("V")[-1])+int(1) # 同一日期下的最新版本+1
+    #bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s","bak-tomcat7-%s", "ROOT.%s.war") % (serverName,serverName, time.strftime("%Y-%m-%d-%H%M%S"))
+    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
+    #print bakdeployRootWar
+    if os.path.exists(deployRootWar):
+        copyFile(deployRootWar, bakdeployRootWar)
+        if os.path.exists(bakdeployRootWar):
+            print "back %s sucess" % deployRootWar
+
+def rollBack(versionId, serverName):
+    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
+    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
+    #deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
+    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+    if not os.path.exists(bakdeployRootWar):
+        print "File:%s is not exits" % bakdeployRootWar
+    if os.path.exists(deployRootWar):
+        os.remove(deployRootWar)
+        print "clean %s file" % deployRootWar
+    copyFile(bakdeployRootWar, deployRootWar)
+    if os.path.exists(deployRootWar):
+        print "RollBack Sucess,update serverName:%s" % serverName
+        stopMain(serverName)
+        if serverName == "upload":
+            cleanCachUpload(deployWarPathRoot)
+        else:
+            if os.path.exists(deployWarPathRoot):
+                shutil.rmtree(deployWarPathRoot)
+        unzipWar(deployRootWar, deployWarPathRoot)
+        startMain(serverName)
+
+        #updateMain(serverName)
+    else:
+        print "check File ,rollback Faile"
+
+
+def versionSort(list):
+  #对版本号排序 控制版本的数量
+    from distutils.version import LooseVersion
+    vs = [LooseVersion(i) for i in list]
+    vs.sort()
+    return [i.vstring for i in vs]
+
+def rollBackMain(serverName):
+    pass
 
 def Main(Tag,serverNAME=""):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
@@ -434,39 +491,53 @@ def Main(Tag,serverNAME=""):
                        war = com.hxh.xhw.upload.war""" % serverConf
         sys.exit()
         # 读取配置文件需要部署的服务名，根据设置的端口部署服务
-    if Tag == "stop":# 停服务
+    if Tag == "stop":  # 停服务
         stopMain(serverNAME)
-    elif Tag == "start": # 启动服务
+    elif Tag == "start":  # 启动服务
         startMain(serverNAME)
-    elif Tag == "restart": # 重启服务
+    elif Tag == "restart":  # 重启服务
         stopMain(serverNAME)
         startMain(serverNAME)
-        #startServer(serverNAME)
-    elif Tag == "update": # 更新发布新版本
+    elif Tag == "update":  # 更新发布新版本
         updateMain(serverNAME)
-    elif Tag in ["install","uninstall","reinstall"]: # 部署tomcat 环境
+    elif Tag in ["install", "uninstall", "reinstall"]:  # 部署tomcat 环境
         deploy(Tag, serverNAME)
+    elif Tag == "send":  # 分发方法
+        sendWarToNodeMain(serverNAME)
 
 if __name__ == "__main__":
+    try:
+        Tag = sys.argv[1]
+        #servername = sys.argv[2]
+    except:
+        print "Follow"
+        sys.exit()
+    if len(sys.argv) == 2:
+        Tag = sys.argv[1]
+        Main(Tag)
+    elif len(sys.argv) == 3:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        Main(Tag, serName)
+    else:
+        print """Follow One or Two agrs," \
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback"""
 
-    # try:
-    #     Tag = sys.argv[1]
-    #     #servername = sys.argv[2]
-    # except:
-    #     print "follow"
-    #     sys.exit()
-    # if len(sys.argv) == 2:
-    #     Tag = sys.argv[1]
-    #     Main(Tag)
-    # elif len(sys.argv) == 3:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     Main(Tag, serName)
-    # else:
-    #     print "Follow One or Two agrs,install|uninstall|reinstall|update|start|stop|restart"
-    sendWarToNode("b2b-activity-api")
+    #backWar("b2b-trade-api")
+    # rollBack("2018-03-22-V4", "upload")
+    # rollBack("2018-03-26-V1", "upload")
+
+
+             #print i
+
+    # sendWarToNodeMain()
+    #sendWarToNode("upload")
+     # sendWarToNodeMain("upload")
     #sendWarToNode("192.168.0.159","upload")
-
     # serverName =""
     # serverName =""
     # sendWarToNodeMain(serverName)
