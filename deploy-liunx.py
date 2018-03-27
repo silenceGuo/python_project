@@ -122,9 +122,11 @@ def stopServe(serverName):
         try:
             a = os.kill(pid, signal.SIGKILL)
             # a = os.kill(pid, signal.9) #　与上等效
-            print 'Killed server:%s, pid:%s,reutrun code:%s' % (serverName, pid, a)
+            print 'Killed server:%s, pid:%s' % (serverName, pid)
         except OSError, e:
             print 'No such as server!', e
+    else:
+        print "server:%s is not running" % serverName
            # sys.exit()
 
 def stopMain(serverName):
@@ -152,12 +154,12 @@ def update(serverName):
     if os.path.exists(deployWarPath):
         backWar(serverName)
     copyFile(jenkinsUploadDirWar, deployWarPath)
-    if serverName == "upload":
-        cleanCachUpload(deployWarPathRoot)
-    else:
-        if os.path.exists(deployWarPathRoot):
-            shutil.rmtree(deployWarPathRoot)
-    unzipWar(deployWarPath, deployWarPathRoot)
+    # if serverName == "upload":
+    #     cleanCachUpload(deployWarPathRoot)
+    # else:
+    #     if os.path.exists(deployWarPathRoot):
+    #         shutil.rmtree(deployWarPathRoot)
+    # unzipWar(deployWarPath, deployWarPathRoot)
 
 def updateMain(serverName):
     # 更新新版本并
@@ -182,6 +184,7 @@ def startServer(serverName):
     startSh = joinPathName(deploymentAppSerDir, "%s%s", "bin/startup.sh") % (tomcatPrefix,serverName)
     binDir = joinPathName(deploymentAppSerDir, "%s%s", "bin/*") % (tomcatPrefix,serverName)
     deployDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix,serverName)
+    deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
     deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
     #cmd = "su - tomcat %s" %startSh
     chmodCmd = "chmod 755 -R %s" % binDir
@@ -203,6 +206,13 @@ def startServer(serverName):
     pid = getPid(serverName)
     if not pid:
         print "Start Server:%s" % serverName
+        # 清历史缓存数据
+        if serverName == "upload":
+            cleanCachUpload(deployWarPathRoot)
+        else:
+            if os.path.exists(deployWarPathRoot):
+                shutil.rmtree(deployWarPathRoot)
+        unzipWar(deployWarPath, deployWarPathRoot)
         execSh(cmd)
         time.sleep(10)
         if getPid(serverName):
@@ -450,37 +460,70 @@ def backWar(serverName):
     bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
     bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
-    #print bakdeployRootWar
+
     if os.path.exists(deployRootWar):
         copyFile(deployRootWar, bakdeployRootWar)
         if os.path.exists(bakdeployRootWar):
             print "back %s sucess" % deployRootWar
 
 def rollBack(versionId, serverName):
-    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
-    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
-    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
-    if not os.path.exists(bakdeployRootWar):
-        print "File:%s is not exits" % bakdeployRootWar
-    if os.path.exists(deployRootWar):
-        os.remove(deployRootWar)
-        print "clean %s file" % deployRootWar
-    copyFile(bakdeployRootWar, deployRootWar)
-    if os.path.exists(deployRootWar):
-        print "RollBack Sucess,update serverName:%s" % serverName
-        stopMain(serverName)
-        if serverName == "upload":
-            cleanCachUpload(deployWarPathRoot)
-        else:
-            if os.path.exists(deployWarPathRoot):
-                shutil.rmtree(deployWarPathRoot)
-        unzipWar(deployRootWar, deployWarPathRoot)
-        startMain(serverName)
+    versionList = getVersion(serverName)
+    if not versionList:
+        print "Not Back war File :%s" % serverName
     else:
-        print "check File:%s ,rollback Faile" % deployRootWar
+        bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
+        deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
+        deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+        if not os.path.exists(bakdeployRootWar):
+            print "File:%s is not exits" % bakdeployRootWar
+        if os.path.exists(deployRootWar):
+            os.remove(deployRootWar)
+            print "clean %s file" % deployRootWar
+        copyFile(bakdeployRootWar, deployRootWar)
+        if os.path.exists(deployRootWar):
+            print "RollBack Sucess,update serverName:%s" % serverName
+            print "Rollback Version:%s " % versionId
+            stopMain(serverName)
+            if serverName == "upload":
+                cleanCachUpload(deployWarPathRoot)
+            else:
+                if os.path.exists(deployWarPathRoot):
+                    shutil.rmtree(deployWarPathRoot)
+            #unzipWar(deployRootWar, deployWarPathRoot)
+            startMain(serverName)
+        else:
+            print "check File:%s ,rollback Faile" % deployRootWar
 
-def rollBackMain(serverName):
-    pass
+def rollBackMain(serverNAME):
+    # 默认回滚发布前上一个版本
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    serverNameList = readConf(serverConfPath)
+
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                           [servername]
+                           http_port = 8810
+                           ajp_port = 8820
+                           shutdown_port = 8830
+                           war = com.hxh.xhw.upload.war""" % serverConf
+        sys.exit()
+    if serverNAME:
+        lastVersinId = getVersion(serverNAME)[-1]
+        rollBack(lastVersinId, serverNAME)
+    else:
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                versionList = getVersion(serverName)
+                if not versionList:
+                    print "Not Back war File:%s" % serverName
+                    continue
+                lastVersinId = getVersion(serverName)[-1]
+                rollBack(lastVersinId, serverName)
 
 def Main(Tag,serverNAME=""):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
@@ -509,34 +552,41 @@ def Main(Tag,serverNAME=""):
     elif Tag == "send":  # 分发方法
         sendWarToNodeMain(serverNAME)
     elif Tag == "rollback":
-        rollBack("1",serverNAME)
+        rollBackMain(serverNAME)
+    else:
+        print """Follow One or Two agrs,
+                       install|uninstall|reinstall:
+                       update:
+                       start|stop|restart:
+                       send:
+                       rollback"""
 
 if __name__ == "__main__":
-    # try:
-    #     Tag = sys.argv[1]
-    #     #servername = sys.argv[2]
-    # except:
-    #     print "Follow"
-    #     sys.exit()
-    # if len(sys.argv) == 2:
-    #     Tag = sys.argv[1]
-    #     Main(Tag)
-    # elif len(sys.argv) == 3:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     Main(Tag, serName)
-    # else:
-    #     print """Follow One or Two agrs," \
-    #            install|uninstall|reinstall:
-    #            update:
-    #            start|stop|restart:
-    #            send:
-    #            rollback"""
+    try:
+        Tag = sys.argv[1]
+        #servername = sys.argv[2]
+    except:
+        print "Follow"
+        sys.exit()
+    if len(sys.argv) == 2:
+        Tag = sys.argv[1]
+        Main(Tag)
+    elif len(sys.argv) == 3:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        Main(Tag, serName)
+    else:
+        print """Follow One or Two agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback"""
 
 
-
-    print getBackVersionId("b2b-trade-api")
-    print getVersion("b2b-trade-api")
+    # rollBackMain("b2b-trade-api")
+    # print getBackVersionId("b2b-trade-api")
+    # print getVersion("b2b-trade-api")
     # backWar("b2b-trade-api")
     # rollBack("2018-03-22-V4", "upload")
     # rollBack("2018-03-26-V1", "upload")
