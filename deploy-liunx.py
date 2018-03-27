@@ -23,7 +23,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 serverConf = "server_liunx.conf"  # 部署配置文件
 uploadConf = "upload_liunx.conf"  # 部署配置文件
-jenkinsUploadDir = "/home/jenkinsUpload/"  # jenkins 上传基础目录
+jenkinsUploadDir = "/root/home/jenkinsUpload/"  # jenkins 上传基础目录
 deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
 baseTomcat = "/home/apache-tomcat-7.0.64-/"
@@ -413,27 +413,42 @@ def deploy(Tag,serverNAME=""):
                 continue
             deployForServer(Tag,serverName,portDict)
 
-def listDirFile(path):
-    os.listdir(path)
+def versionSort(list):
+  #对版本号排序 控制版本的数量
+    from distutils.version import LooseVersion
+    vs = [LooseVersion(i) for i in list]
+    vs.sort()
+    return [i.vstring for i in vs]
 
-def getVersion(path):
+def getVersion(serverName):
+    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
     versionIdList = []
-    for i in os.listdir(path):
+    for i in os.listdir(bakdeployRoot):
         if i.split(".")[0] == "ROOT":
             versionId = i.split(".")[1]
             versionIdList.append(versionId)
     if not versionIdList:
-        return ["0"]
-    return versionSort(versionIdList)  # 返回版本号 升序列表
+        return []
+    return versionSort(versionIdList)  # 返回版本号升序列表
+
+def getBackVersionId(serverName):
+    date = time.strftime("%Y-%m-%d")
+    versionIdList = getVersion(serverName)
+    if not versionIdList:
+        return 1
+    else:
+        # 同一日期下的最新版本+1
+        if date != versionSort(versionIdList)[-1].split("-V")[0]:
+            return 1
+        else:
+            return int(versionIdList[-1].split("-")[-1].split("V")[-1]) + int(1)
 
 def backWar(serverName):
     # 部署的war包
     deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
     # 备份war包路径
     bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
-    # versionId = int(getVersion(bakdeployRoot)[-1])+int(1)
-    versionId = int(getVersion(bakdeployRoot)[-1].split("-")[-1].split("V")[-1])+int(1) # 同一日期下的最新版本+1
-    #bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s","bak-tomcat7-%s", "ROOT.%s.war") % (serverName,serverName, time.strftime("%Y-%m-%d-%H%M%S"))
+    versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
     bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
     #print bakdeployRootWar
     if os.path.exists(deployRootWar):
@@ -444,7 +459,6 @@ def backWar(serverName):
 def rollBack(versionId, serverName):
     bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
     deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
-    #deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
     deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
     if not os.path.exists(bakdeployRootWar):
         print "File:%s is not exits" % bakdeployRootWar
@@ -462,18 +476,8 @@ def rollBack(versionId, serverName):
                 shutil.rmtree(deployWarPathRoot)
         unzipWar(deployRootWar, deployWarPathRoot)
         startMain(serverName)
-
-        #updateMain(serverName)
     else:
-        print "check File ,rollback Faile"
-
-
-def versionSort(list):
-  #对版本号排序 控制版本的数量
-    from distutils.version import LooseVersion
-    vs = [LooseVersion(i) for i in list]
-    vs.sort()
-    return [i.vstring for i in vs]
+        print "check File:%s ,rollback Faile" % deployRootWar
 
 def rollBackMain(serverName):
     pass
@@ -504,30 +508,36 @@ def Main(Tag,serverNAME=""):
         deploy(Tag, serverNAME)
     elif Tag == "send":  # 分发方法
         sendWarToNodeMain(serverNAME)
+    elif Tag == "rollback":
+        rollBack("1",serverNAME)
 
 if __name__ == "__main__":
-    try:
-        Tag = sys.argv[1]
-        #servername = sys.argv[2]
-    except:
-        print "Follow"
-        sys.exit()
-    if len(sys.argv) == 2:
-        Tag = sys.argv[1]
-        Main(Tag)
-    elif len(sys.argv) == 3:
-        Tag = sys.argv[1]
-        serName = sys.argv[2]
-        Main(Tag, serName)
-    else:
-        print """Follow One or Two agrs," \
-               install|uninstall|reinstall:
-               update:
-               start|stop|restart:
-               send:
-               rollback"""
+    # try:
+    #     Tag = sys.argv[1]
+    #     #servername = sys.argv[2]
+    # except:
+    #     print "Follow"
+    #     sys.exit()
+    # if len(sys.argv) == 2:
+    #     Tag = sys.argv[1]
+    #     Main(Tag)
+    # elif len(sys.argv) == 3:
+    #     Tag = sys.argv[1]
+    #     serName = sys.argv[2]
+    #     Main(Tag, serName)
+    # else:
+    #     print """Follow One or Two agrs," \
+    #            install|uninstall|reinstall:
+    #            update:
+    #            start|stop|restart:
+    #            send:
+    #            rollback"""
 
-    #backWar("b2b-trade-api")
+
+
+    print getBackVersionId("b2b-trade-api")
+    print getVersion("b2b-trade-api")
+    # backWar("b2b-trade-api")
     # rollBack("2018-03-22-V4", "upload")
     # rollBack("2018-03-26-V1", "upload")
 
