@@ -538,6 +538,7 @@ def Main(Tag,serverNAME=""):
                        war = com.hxh.xhw.upload.war""" % serverConf
         sys.exit()
         # 读取配置文件需要部署的服务名，根据设置的端口部署服务
+
     if Tag == "stop":  # 停服务
         stopMain(serverNAME)
     elif Tag == "start":  # 启动服务
@@ -574,6 +575,10 @@ if __name__ == "__main__":
     elif len(sys.argv) == 3:
         Tag = sys.argv[1]
         serName = sys.argv[2]
+        #print checkServer(serName)
+        if not checkServer(serName):
+            print "serverName is worry,please check"
+            sys.exit()
         Main(Tag, serName)
     else:
         print """Follow One or Two agrs,
