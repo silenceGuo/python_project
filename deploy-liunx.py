@@ -533,7 +533,6 @@ def Main(Tag,serverNAME=""):
         print """ %s like this:
                        [servername]
                        http_port = 8810
-                       ajp_port = 8820
                        shutdown_port = 8830
                        war = com.hxh.xhw.upload.war""" % serverConf
         sys.exit()
@@ -567,7 +566,12 @@ if __name__ == "__main__":
         Tag = sys.argv[1]
         #servername = sys.argv[2]
     except:
-        print "Follow"
+        print """Follow One or Two agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback:[serverName]"""
         sys.exit()
     if len(sys.argv) == 2:
         Tag = sys.argv[1]
@@ -586,7 +590,7 @@ if __name__ == "__main__":
                update:
                start|stop|restart:
                send:
-               rollback"""
+               rollback [serverName]"""
 
 
     # rollBackMain("b2b-trade-api")
