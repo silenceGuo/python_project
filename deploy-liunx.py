@@ -14,7 +14,7 @@ import codecs
 import shutil
 import zipfile
 #import shlex
-#import paramiko
+import paramiko
 #import SSH
 import time
 import ConfigParser
@@ -28,6 +28,7 @@ deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
 baseTomcat = "/home/apache-tomcat-7.0.64-/"
 tomcatPrefix = "apache-tomcat-7.0.64-"
+pyFile ="/home/scripts/deploy-liunx.py" # 远程服务器py脚本路径
 
 def _init():
     # 初始化基础目录
@@ -52,9 +53,6 @@ def copyFile(sourfile,disfile):
     except Exception, e:
         print e,
         sys.exit(1)
-
-def reName():
-    pass
 
 # 上传分发 方法 前提是设置好目标服务器无密码登录
 def sendWarToNode(serverName):
@@ -193,19 +191,21 @@ def startServer(serverName):
     chownCmd = "chown -R tomcat:tomcat %s" % deployDir
     chownCmd2 = "chown -R tomcat:tomcat %s" % binDir
     chownCmd3 = "chown -R tomcat:tomcat %s" % deployWarPathRoot
-    # 授权
-    #print "chmod dir 755 %s" % binDir
-    execSh(chmodCmd)
-    execSh(chmodCmd2)
-    execSh(chmodCmd3)
-    # 更改所属 组
-    execSh(chownCmd)
-    execSh(chownCmd2)
-    execSh(chownCmd3)
-    cmd = "su - tomcat %s" % startSh
+
+    # cmd = "su - tomcat %s" % startSh
+    cmd = "su tomcat %s" % startSh
     pid = getPid(serverName)
     if not pid:
         print "Start Server:%s" % serverName
+        # 授权
+        # print "chmod dir 755 %s" % binDir
+        execSh(chmodCmd)
+        execSh(chmodCmd2)
+        execSh(chmodCmd3)
+        # 更改所属 组
+        execSh(chownCmd)
+        execSh(chownCmd2)
+        execSh(chownCmd3)
         # 清历史缓存数据
         if serverName == "upload":
             cleanCachUpload(deployWarPathRoot)
@@ -213,7 +213,11 @@ def startServer(serverName):
             if os.path.exists(deployWarPathRoot):
                 shutil.rmtree(deployWarPathRoot)
         unzipWar(deployWarPath, deployWarPathRoot)
-        execSh(cmd)
+        stdout, stderr = execSh(cmd)  # 执行 启动服务命令
+        if stdout:
+            print "stdout:%s" % stdout
+        if stderr:
+            print "stderr:%s " % stderr
         time.sleep(10)
         if getPid(serverName):
             print "Server:%s,Sucess pid:%s" % (serverName, getPid(serverName))
@@ -525,6 +529,81 @@ def rollBackMain(serverNAME):
                 lastVersinId = getVersion(serverName)[-1]
                 rollBack(lastVersinId, serverName)
 
+def conn(ip, username, passwd):
+    # ssh连接函数
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(ip, 22, username, passwd, timeout=5)
+        print "Connect to ", ip, " with ", username
+        global curr_prompt
+        curr_prompt = username + "@" + ip + ">>"
+        return ssh
+    except:
+        print "Connect fail to ", ip, " with ", username
+        sys.exit(1)
+
+
+def sshCmd(Tag,ip,serverName):
+    try:
+        cmd = "python %s %s %s" %(pyFile,Tag,serverName)
+        # cmd = "python %s %s %s" %(pyFile,Tag,serverName)
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        pkey_file = '/root/.ssh/id_rsa'
+        key = paramiko.RSAKey.from_private_key_file(pkey_file)  # 生成秘钥对
+        ssh.connect(hostname=ip, username='root', pkey=key)
+        print "Connect to ", ip, " with "
+
+    except:
+        print "Connect fail to ", ip, " with "
+        sys.exit(1)
+
+    stdin, stdout, stderr = ssh.exec_command(cmd)
+    stdout = stdout.read()
+    stderr = stderr.read()
+    print stdout, stderr
+    ssh.close()
+
+def sshCmdMain(Tag, serverName):
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                       [servername]
+                       http_port = 8810
+                       shutdown_port = 8830
+                       war = com.hxh.xhw.upload.war
+                       ip = 192.168.0.159,192.168.0.59""" % serverConf
+        sys.exit()
+    if serverName:
+        #serverNameDict = readConf(serverConfPath, serverName)
+        #print serverNameDict
+        try:
+            ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+        except:
+            print "Check Config File"
+            sys.exit()
+        for ip in ipList:
+            sshCmd(Tag, ip, serverName)
+    else:
+       serverNameList = readConf(serverConfPath)
+       # print serverNameList
+       for serverNameDict in serverNameList:
+           for serverName, portDict in serverNameDict.iteritems():
+               if serverName == "conf":
+                   # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                   continue
+               try:
+                   ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+               except:
+                   print "Check Config File"
+                   sys.exit()
+               for ip in ipList:
+                   sshCmd(Tag, ip, serverName)
+               #sshCmd(Tag, ip, serverName)
+
 def Main(Tag,serverNAME=""):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
@@ -534,7 +613,8 @@ def Main(Tag,serverNAME=""):
                        [servername]
                        http_port = 8810
                        shutdown_port = 8830
-                       war = com.hxh.xhw.upload.war""" % serverConf
+                       war = com.hxh.xhw.upload.war
+                       ip = 192.168.0.159,192.168.0.59""" % serverConf
         sys.exit()
         # 读取配置文件需要部署的服务名，根据设置的端口部署服务
 
@@ -553,6 +633,9 @@ def Main(Tag,serverNAME=""):
         sendWarToNodeMain(serverNAME)
     elif Tag == "rollback":
         rollBackMain(serverNAME)
+    elif Tag == "remote":
+        sshCmdMain()
+        pass
     else:
         print """Follow One or Two agrs,
                        install|uninstall|reinstall:
@@ -562,52 +645,37 @@ def Main(Tag,serverNAME=""):
                        rollback"""
 
 if __name__ == "__main__":
-    try:
-        Tag = sys.argv[1]
-        #servername = sys.argv[2]
-    except:
-        print """Follow One or Two agrs,
-               install|uninstall|reinstall:
-               update:
-               start|stop|restart:
-               send:
-               rollback:[serverName]"""
-        sys.exit()
-    if len(sys.argv) == 2:
-        Tag = sys.argv[1]
-        Main(Tag)
-    elif len(sys.argv) == 3:
-        Tag = sys.argv[1]
-        serName = sys.argv[2]
-        #print checkServer(serName)
-        if not checkServer(serName):
-            print "serverName is worry,please check"
-            sys.exit()
-        Main(Tag, serName)
-    else:
-        print """Follow One or Two agrs,
-               install|uninstall|reinstall:
-               update:
-               start|stop|restart:
-               send:
-               rollback [serverName]"""
+    # try:
+    #     Tag = sys.argv[1]
+    #     #servername = sys.argv[2]
+    # except:
+    #     print """Follow One or Two agrs,
+    #            install|uninstall|reinstall:
+    #            update:
+    #            start|stop|restart:
+    #            send:
+    #            rollback:[serverName]"""
+    #     sys.exit(1)
+    # if len(sys.argv) == 2:
+    #     Tag = sys.argv[1]
+    #     Main(Tag)
+    # elif len(sys.argv) == 3:
+    #     Tag = sys.argv[1]
+    #     serName = sys.argv[2]
+    #     #print checkServer(serName)
+    #     if not checkServer(serName):
+    #         print "serverName is worry,please check"
+    #         sys.exit(1)
+    #     Main(Tag, serName)
+    # else:
+    #     print """Follow One or Two agrs,
+    #            install|uninstall|reinstall:
+    #            update:
+    #            start|stop|restart:
+    #            send:
+    #            rollback [serverName]"""
+    #     sys.exit(1)
 
+    #cmd = "python /home/deploy-liunx.py restart upload"
 
-    # rollBackMain("b2b-trade-api")
-    # print getBackVersionId("b2b-trade-api")
-    # print getVersion("b2b-trade-api")
-    # backWar("b2b-trade-api")
-    # rollBack("2018-03-22-V4", "upload")
-    # rollBack("2018-03-26-V1", "upload")
-
-
-             #print i
-
-    # sendWarToNodeMain()
-    #sendWarToNode("upload")
-     # sendWarToNodeMain("upload")
-    #sendWarToNode("192.168.0.159","upload")
-    # serverName =""
-    # serverName =""
-    # sendWarToNodeMain(serverName)
-
+    sshCmdMain(Tag="restart", serverName="upload")
