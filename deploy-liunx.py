@@ -543,29 +543,28 @@ def conn(ip, username, passwd):
         print "Connect fail to ", ip, " with ", username
         sys.exit(1)
 
-
 def sshCmd(Tag,ip,serverName):
     try:
         cmd = "python %s %s %s" %(pyFile,Tag,serverName)
-        # cmd = "python %s %s %s" %(pyFile,Tag,serverName)
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         pkey_file = '/root/.ssh/id_rsa'
         key = paramiko.RSAKey.from_private_key_file(pkey_file)  # 生成秘钥对
         ssh.connect(hostname=ip, username='root', pkey=key)
         print "Connect to ", ip, " with "
+        stdin, stdout, stderr = ssh.exec_command(cmd)
 
     except:
         print "Connect fail to ", ip, " with "
         sys.exit(1)
-
-    stdin, stdout, stderr = ssh.exec_command(cmd)
+    # stdin, stdout, stderr = ssh.exec_command("cat /etc/sysconfig/network-scripts/ifcfg-eth0")
     stdout = stdout.read()
     stderr = stderr.read()
     print stdout, stderr
     ssh.close()
 
 def sshCmdMain(Tag, serverName):
+
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     if not os.path.exists(serverConfPath):
@@ -578,8 +577,6 @@ def sshCmdMain(Tag, serverName):
                        ip = 192.168.0.159,192.168.0.59""" % serverConf
         sys.exit()
     if serverName:
-        #serverNameDict = readConf(serverConfPath, serverName)
-        #print serverNameDict
         try:
             ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
         except:
@@ -602,7 +599,6 @@ def sshCmdMain(Tag, serverName):
                    sys.exit()
                for ip in ipList:
                    sshCmd(Tag, ip, serverName)
-               #sshCmd(Tag, ip, serverName)
 
 def Main(Tag,serverNAME=""):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
@@ -633,9 +629,6 @@ def Main(Tag,serverNAME=""):
         sendWarToNodeMain(serverNAME)
     elif Tag == "rollback":
         rollBackMain(serverNAME)
-    elif Tag == "remote":
-        sshCmdMain()
-        pass
     else:
         print """Follow One or Two agrs,
                        install|uninstall|reinstall:
@@ -645,37 +638,51 @@ def Main(Tag,serverNAME=""):
                        rollback"""
 
 if __name__ == "__main__":
-    # try:
-    #     Tag = sys.argv[1]
-    #     #servername = sys.argv[2]
-    # except:
-    #     print """Follow One or Two agrs,
-    #            install|uninstall|reinstall:
-    #            update:
-    #            start|stop|restart:
-    #            send:
-    #            rollback:[serverName]"""
-    #     sys.exit(1)
-    # if len(sys.argv) == 2:
-    #     Tag = sys.argv[1]
-    #     Main(Tag)
-    # elif len(sys.argv) == 3:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     #print checkServer(serName)
-    #     if not checkServer(serName):
-    #         print "serverName is worry,please check"
-    #         sys.exit(1)
-    #     Main(Tag, serName)
-    # else:
-    #     print """Follow One or Two agrs,
-    #            install|uninstall|reinstall:
-    #            update:
-    #            start|stop|restart:
-    #            send:
-    #            rollback [serverName]"""
-    #     sys.exit(1)
+    try:
+        Tag = sys.argv[1]
+        #servername = sys.argv[2]
+    except:
+        print """Follow One or Two agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback:[serverName]"""
+        sys.exit(1)
+    if len(sys.argv) == 2:
+        Tag = sys.argv[1]
+        Main(Tag)
+    elif len(sys.argv) == 3:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        #print checkServer(serName)
+        if not checkServer(serName):
+            print "serverName is worry,please check"
+            sys.exit(1)
+        Main(Tag, serName)
+    elif len(sys.argv) == 4:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        remote = sys.argv[3]
+        if remote == "remote":
+            sshCmdMain(Tag, serName)
+        else:
+            print """Follow  agrs,
+                           install|uninstall|reinstall:
+                           update:
+                           start|stop|restart:
+                           send:
+                           rollback [serverName] [remote]"""
+    else:
+        print """Follow agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback [serverName] [remote]"""
+        sys.exit(1)
 
     #cmd = "python /home/deploy-liunx.py restart upload"
 
-    sshCmdMain(Tag="restart", serverName="upload")
+    #sshCmdMain(Tag="restart", serverName="upload")
+    #sshCmd(Tag="restart",ip="192.168.0.159" ,serverName="upload")
