@@ -23,13 +23,14 @@ import ConfigParser
 reload(sys)
 sys.setdefaultencoding('utf-8')
 serverConf = "server_liunx.conf"  # 部署配置文件
-uploadConf = "upload_liunx.conf"  # 部署配置文件
+#uploadConf = "upload_liunx.conf"  # 部署配置文件
 jenkinsUploadDir = "/root/home/jenkinsUpload/"  # jenkins 上传基础目录
 deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
 baseTomcat = "/home/apache-tomcat-7.0.64-/"
 tomcatPrefix = "apache-tomcat-7.0.64-"
 pyFile ="/home/scripts/deploy-liunx.py" # 指程服务器py脚本路径
+
 
 def _init():
     # 初始化基础目录
