@@ -3,7 +3,8 @@
 # @Author : gzq
 # @date   : 2018/1/10 0010 16:30
 # @file   : deploy-liunx.py
-
+# 该脚本部署在统一的目录下通过，实现本地及远程服务器上的服务部署，重启，发布,分发,回滚等操作
+# 登陆远程服务器需提前配置好ssh密钥登陆
 from subprocess import PIPE, Popen
 import time
 import os
@@ -28,7 +29,7 @@ deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
 baseTomcat = "/home/apache-tomcat-7.0.64-/"
 tomcatPrefix = "apache-tomcat-7.0.64-"
-pyFile ="/home/scripts/deploy-liunx.py" # 远程服务器py脚本路径
+pyFile ="/home/scripts/deploy-liunx.py" # 指程服务器py脚本路径
 
 def _init():
     # 初始化基础目录
@@ -545,7 +546,7 @@ def conn(ip, username, passwd):
 
 def sshCmd(Tag,ip,serverName):
     try:
-        cmd = "python %s %s %s" %(pyFile,Tag,serverName)
+        cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本 和传入参数
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         pkey_file = '/root/.ssh/id_rsa'
@@ -553,7 +554,6 @@ def sshCmd(Tag,ip,serverName):
         ssh.connect(hostname=ip, username='root', pkey=key)
         print "Connect to ", ip, " with "
         stdin, stdout, stderr = ssh.exec_command(cmd)
-
     except:
         print "Connect fail to ", ip, " with "
         sys.exit(1)
@@ -564,7 +564,7 @@ def sshCmd(Tag,ip,serverName):
     ssh.close()
 
 def sshCmdMain(Tag, serverName):
-
+    # 远程调用主函数
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     if not os.path.exists(serverConfPath):
@@ -655,7 +655,6 @@ if __name__ == "__main__":
     elif len(sys.argv) == 3:
         Tag = sys.argv[1]
         serName = sys.argv[2]
-        #print checkServer(serName)
         if not checkServer(serName):
             print "serverName is worry,please check"
             sys.exit(1)
@@ -665,7 +664,7 @@ if __name__ == "__main__":
         serName = sys.argv[2]
         remote = sys.argv[3]
         if remote == "remote":
-            sshCmdMain(Tag, serName)
+            sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
         else:
             print """Follow  agrs,
                            install|uninstall|reinstall:
@@ -681,8 +680,3 @@ if __name__ == "__main__":
                send:
                rollback [serverName] [remote]"""
         sys.exit(1)
-
-    #cmd = "python /home/deploy-liunx.py restart upload"
-
-    #sshCmdMain(Tag="restart", serverName="upload")
-    #sshCmd(Tag="restart",ip="192.168.0.159" ,serverName="upload")
