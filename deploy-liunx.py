@@ -60,8 +60,9 @@ def sendWarToNode(serverName):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     warName = readConf(serverConfPath, serverName)[serverName]["war"]
-    # ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+
     try :
+        # 重组ｉｐ　列表
         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
     except:
         print "Check Config File"
@@ -544,7 +545,7 @@ def conn(ip, username, passwd):
         print "Connect fail to ", ip, " with ", username
         sys.exit(1)
 
-def sshCmd(Tag,ip,serverName):
+def sshCmd(Tag, ip, serverName):
     try:
         cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本 和传入参数
         ssh = paramiko.SSHClient()
@@ -640,14 +641,13 @@ def Main(Tag,serverNAME=""):
 if __name__ == "__main__":
     try:
         Tag = sys.argv[1]
-        #servername = sys.argv[2]
     except:
-        print """Follow One or Two agrs,
+        print """Follow Agrs,
                install|uninstall|reinstall:
                update:
                start|stop|restart:
                send:
-               rollback:[serverName]"""
+               rollback:[serverName] [remote]"""
         sys.exit(1)
     if len(sys.argv) == 2:
         Tag = sys.argv[1]
@@ -666,14 +666,14 @@ if __name__ == "__main__":
         if remote == "remote":
             sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
         else:
-            print """Follow  agrs,
+            print """Follow Agrs,
                            install|uninstall|reinstall:
                            update:
                            start|stop|restart:
                            send:
                            rollback [serverName] [remote]"""
     else:
-        print """Follow agrs,
+        print """Follow Agrs,
                install|uninstall|reinstall:
                update:
                start|stop|restart:
