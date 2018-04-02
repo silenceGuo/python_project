@@ -24,7 +24,7 @@ browser = webdriver.Chrome()
 # 正则匹配试图中的job 名字
 re_job_id = re.compile(r'<tr id="(job_.*?)" class="',re.M)
 
-# 黑名单任务 不执行　
+# 黑名单任务不执行　
 backJobDict = {"备份测试环境V4.0.0-AUTO":
              [
              "job_备份测试环境-OSS-COMMON-V4.0.0-AUTO",
@@ -39,8 +39,8 @@ backJobDict = {"备份测试环境V4.0.0-AUTO":
     "测试环境4.0-AUTO":
              [
              "job_测试环境-OSS-COMMON-V4.0.0-AUTO",
-             "job_测试环境-OSS-TMS-OPEN-V4.0.0-AUTO",
-             "job_测试环境-OSS-TMS-H5-V4.0.0-AUTO",
+             # "job_测试环境-OSS-TMS-OPEN-V4.0.0-AUTO",
+             # "job_测试环境-OSS-TMS-H5-V4.0.0-AUTO",
              # "job_测试环境-OSS-STORE-V4.0.0-AUTO",
              # "job_测试环境-API-SMS-V4.0.0-AUTO",
              # "job_测试环境-API-POS-BILL-V4.0.0-AUTO",
@@ -57,7 +57,7 @@ backJobDict = {"备份测试环境V4.0.0-AUTO":
              "job_restart-测试环境（IP225）- 服务名--服务所在服务器",
              "job_restart-测试环境（ip221）- 服务名--服务名所在服务器",
              "job_测试环境-UPLOAD-V4.0.0-AUTO",
-             "job_测试环境-OSS-SMS-V4.0.0-AUTO",
+             # "job_测试环境-OSS-SMS-V4.0.0-AUTO",
              ],
     "开发环境4.0-AUTO":[
              "job_开发环境-OSS-COMMON-V4.0.0-AUTO",
@@ -100,6 +100,7 @@ def click_job(jobViewName):
             time.sleep(5)
             print job_name
 
+
 if __name__ == "__main__":
     username = "guozhiquan"
     passwd = "123456"
@@ -107,12 +108,19 @@ if __name__ == "__main__":
     tag = sys.argv[1]
     if tag == "dev":
         click_job("开发环境4.0-AUTO")
+        browser.quit()
+        sys.exit()
     elif tag == "test":
         click_job("测试环境4.0-AUTO")
+        browser.quit()
+        sys.exit()
     elif tag == "bktest":
       click_job("备份测试环境V4.0.0-AUTO")
+      browser.quit()
+      sys.exit()
     elif tag =="offic":
         pass
     else:
         pass
+
 
