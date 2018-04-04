@@ -27,8 +27,8 @@ serverConf = "server_liunx.conf"  # 部署配置文件
 jenkinsUploadDir = "/root/home/jenkinsUpload/"  # jenkins 上传基础目录
 deploymentDir = "/home/deployDir/"  # 目录存放war包
 deploymentAppSerDir = "/home/serverApp/"  # 部署工程目录存放tomcat
-baseTomcat = "/home/apache-tomcat-7.0.64-/"
-tomcatPrefix = "apache-tomcat-7.0.64-"
+baseTomcat = "/home/tomcat7-/"
+tomcatPrefix = "tomcat7-"
 pyFile ="/home/scripts/deploy-liunx.py" # 指程服务器py脚本路径
 
 
@@ -200,6 +200,14 @@ def startServer(serverName):
     pid = getPid(serverName)
     if not pid:
         print "Start Server:%s" % serverName
+
+        # 清历史缓存数据
+        if serverName == "upload":
+            cleanCachUpload(deployWarPathRoot)
+        else:
+            if os.path.exists(deployWarPathRoot):
+                shutil.rmtree(deployWarPathRoot)
+        unzipWar(deployWarPath, deployWarPathRoot)
         # 授权
         # print "chmod dir 755 %s" % binDir
         execSh(chmodCmd)
@@ -209,13 +217,7 @@ def startServer(serverName):
         execSh(chownCmd)
         execSh(chownCmd2)
         execSh(chownCmd3)
-        # 清历史缓存数据
-        if serverName == "upload":
-            cleanCachUpload(deployWarPathRoot)
-        else:
-            if os.path.exists(deployWarPathRoot):
-                shutil.rmtree(deployWarPathRoot)
-        unzipWar(deployWarPath, deployWarPathRoot)
+
         stdout, stderr = execSh(cmd)  # 执行 启动服务命令
         if stdout:
             print "stdout:%s" % stdout
@@ -656,9 +658,10 @@ if __name__ == "__main__":
     elif len(sys.argv) == 3:
         Tag = sys.argv[1]
         serName = sys.argv[2]
-        if not checkServer(serName):
-            print "serverName is worry,please check"
-            sys.exit(1)
+        if not Tag in ["install", "uninstall", "reinstall"]:
+           if not checkServer(serName):
+               print "serverName is worry,please check"
+               sys.exit(1)
         Main(Tag, serName)
     elif len(sys.argv) == 4:
         Tag = sys.argv[1]
