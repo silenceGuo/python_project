@@ -18,7 +18,7 @@ import ConfigParser
 import paramiko
 from subprocess import PIPE,Popen
 
-pyFile ="/home/scripts/deploy-liunx.py"
+
 # 默认部署工程目录，默认是webapps
 deploydir = "webapps"
 #部署服务和端口配置文件server.conf,在同一目录下
@@ -31,6 +31,10 @@ checktime = 5
 # 返回部署工程的目标目录
 def deploymentTomcatName(serverName):
     return os.path.join(deploymentDir, "%s%s") % (baseDeploymentName, serverName)
+
+def joinPathName(serverPath, serverName, *args):
+    # 目录拼接　
+    return os.path.join(serverPath, serverName, *args)  # % (baseDeploymentName, serverName)
 
 # 从基础tomcat复制到目标工程目录
 def copyBaseTomcat(serverName):
@@ -418,8 +422,120 @@ def sshCmdMain(Tag, serverName):
                for ip in ipList:
                    sshCmd(Tag, ip, serverName)
 
+def copyFile(sourfile,disfile):
+    try:
+        print "copy file:%s,to:%s" % (sourfile, disfile)
+        shutil.copy2(sourfile, disfile)  # % ( disfile, time.strftime("%Y-%m-%d-%H%M%S"))
+    except Exception, e:
+        print e,
+        sys.exit(1)
+
+def versionSort(list):
+  #对版本号排序 控制版本的数量
+    from distutils.version import LooseVersion
+    vs = [LooseVersion(i) for i in list]
+    vs.sort()
+    return [i.vstring for i in vs]
+
+def getVersion(serverName):
+    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    versionIdList = []
+    for i in os.listdir(bakdeployRoot):
+        if i.split(".")[0] == "ROOT":
+            versionId = i.split(".")[1]
+            versionIdList.append(versionId)
+    if not versionIdList:
+        return []
+    return versionSort(versionIdList)  # 返回版本号升序列表
+
+def getBackVersionId(serverName):
+    date = time.strftime("%Y-%m-%d")
+    versionIdList = getVersion(serverName)
+    if not versionIdList:
+        return 1
+    else:
+        # 同一日期下的最新版本+1
+        if date != versionSort(versionIdList)[-1].split("-V")[0]:
+            return 1
+        else:
+            return int(versionIdList[-1].split("-")[-1].split("V")[-1]) + int(1)
+
+def backWar(serverName):
+    # 部署的war包
+
+    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
+    # 备份war包路径
+    #bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
+    bakdeployRootWar = joinPathName(bakWarDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
+
+    if os.path.exists(deployRootWar):
+        copyFile(deployRootWar, bakdeployRootWar)
+        if os.path.exists(bakdeployRootWar):
+            print "back %s sucess" % deployRootWar
+
+def rollBack(versionId, serverName):
+    versionList = getVersion(serverName)
+    if not versionList:
+        print "Not Back war File :%s" % serverName
+    else:
+        bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
+        deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
+        deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+        if not os.path.exists(bakdeployRootWar):
+            print "File:%s is not exits" % bakdeployRootWar
+        if os.path.exists(deployRootWar):
+            os.remove(deployRootWar)
+            print "clean %s file" % deployRootWar
+        copyFile(bakdeployRootWar, deployRootWar)
+        if os.path.exists(deployRootWar):
+            print "RollBack Sucess,update serverName:%s" % serverName
+            print "Rollback Version:%s " % versionId
+            stopMain(serverName)
+            if serverName == "upload":
+                cleanCachUpload(deployWarPathRoot)
+            else:
+                if os.path.exists(deployWarPathRoot):
+                    shutil.rmtree(deployWarPathRoot)
+            #unzipWar(deployRootWar, deployWarPathRoot)
+            startMain(serverName)
+        else:
+            print "check File:%s ,rollback Faile" % deployRootWar
+
+def rollBackMain(serverNAME):
+    # 默认回滚发布前上一个版本
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    serverNameList = readConf(serverConfPath)
+
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                           [servername]
+                           http_port = 8810
+                           ajp_port = 8820
+                           shutdown_port = 8830
+                           war = com.hxh.xhw.upload.war""" % serverConf
+        sys.exit()
+    if serverNAME:
+        lastVersinId = getVersion(serverNAME)[-1]
+        rollBack(lastVersinId, serverNAME)
+    else:
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                versionList = getVersion(serverName)
+                if not versionList:
+                    print "Not Back war File:%s" % serverName
+                    continue
+                lastVersinId = getVersion(serverName)[-1]
+                rollBack(lastVersinId, serverName)
+
 def Main(Tag,serverName=""):
-    deploymentDir, baseDeploymentName, baseTomcat = _init()
+    _init()
+    #deploymentDir, baseDeploymentName, baseTomcat = _init()
     if not os.path.exists(serverConfPath):
         print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
@@ -454,19 +570,30 @@ def Main(Tag,serverName=""):
                            send:
                            rollback"""
 
-    pass
 
-# 初始化 读取配置文件配置部署目录和基础部署文件的设置
+# 初始化读取配置文件配置部署目录和基础部署文件的设置
 def _init():
-    #serverConfPath = os.path.join(os.getcwd(), serverConf)
-
     serverConfList = readConf(serverConfPath)
     _serverConf = serverConfList[0]
     deploymentDir = _serverConf["conf"]["deploymentdir"]
     baseDeploymentName = _serverConf["conf"]["basedeploymentname"]
     baseTomcat = _serverConf["conf"]["basetomcat"]
+    pyFile = _serverConf["conf"]["pyFile"]
+    bakWarDir = _serverConf["conf"]["bakWarDir"]
+    jenkinsUploadDir = _serverConf["conf"]["jenkinsUploadDir"]
+    global deploymentDir,\
+            baseTomcat, baseTomcat,\
+            baseDeploymentName, pyFile, \
+            bakWarDir, jenkinsUploadDir
+    if not os.path.exists(deploymentDir):
+        os.makedirs(deploymentDir)
+    if not os.path.exists(bakWarDir):
+        os.makedirs(bakWarDir)
+    if not os.path.exists(jenkinsUploadDir):
+        os.makedirs(jenkinsUploadDir)
+
     # serverConf = _serverConf["conf"]["serverConf"]
-    return deploymentDir, baseDeploymentName, baseTomcat
+    #return deploymentDir, baseDeploymentName, baseTomcat
 
 def list_dir(path):
     list = os.listdir(path)
@@ -480,7 +607,8 @@ def list_dir(path):
 
 if __name__ == "__main__":
     # 读取配置文件信息
-    deploymentDir, baseDeploymentName, baseTomcat = _init()
+
+    #deploymentDir, baseDeploymentName, baseTomcat = _init()
     #print readStartServerConf()
     #print readConf(serverConf)
 
