@@ -15,15 +15,19 @@ sys.setdefaultencoding('utf-8')
 import xml.dom.minidom
 import codecs
 import ConfigParser
+import paramiko
 from subprocess import PIPE,Popen
 
+pyFile ="/home/scripts/deploy-liunx.py"
 # 默认部署工程目录，默认是webapps
 deploydir = "webapps"
 #部署服务和端口配置文件server.conf,在同一目录下
 serverConf = "server.conf"
-# 启动服务顺序配置文件
-serverStartConf = "serverStart.conf"
-
+# 取配置文件的绝对路径
+dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+serverConfPath = os.path.join(dirname, serverConf)
+# 检查时间
+checktime = 5
 # 返回部署工程的目标目录
 def deploymentTomcatName(serverName):
     return os.path.join(deploymentDir, "%s%s") % (baseDeploymentName, serverName)
@@ -93,7 +97,7 @@ def changDir(dirpath):
 def execCmd(cmd):
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = p.communicate()
-    print 'Eexec CMD :%s' %cmd
+    print 'Exec CMD :%s' %cmd
     return stdout, stderr
 
 # 注册或注销服务
@@ -117,18 +121,22 @@ def getPid(servername):
     cmd = "sc queryex %s" % servername
     stdout, stderr = execCmd(cmd)
     if "EnumQueryServicesStatus:OpenService" in stdout.split(" "):
-        #print 'service name is not install'
+        print 'service name :%s is not install' % servername
         return False
-    try:
-        #print [i.strip() for i in stdout.split('\n') if i.strip().split(":")][1:]
-        pid = [i.strip() for i in stdout.split('\n') if i.strip()][8].split(":")[1].strip()
-       #pid = [i.strip() for i in stdout.split('\n') if i.strip().split(":")][8].split(":")[1].strip()
-    except:
-        print 'sc query fail %s is not exists' % servername
-        return False
-    print 'net_pid :', pid
-    if pid:
-        return pid
+    else:
+        try:
+            #print [i.strip() for i in stdout.split('\n') if i.strip().split(":")][1:]
+            pid = [i.strip() for i in stdout.split('\n') if i.strip()][8].split(":")[1].strip()
+           #pid = [i.strip() for i in stdout.split('\n') if i.strip().split(":")][8].split(":")[1].strip()
+        except:
+            print 'sc query fail %s is not exists' % servername
+            return False
+        if pid:
+            print 'net_pid :', pid
+            return pid
+        else:
+             print "service:%s is stoped sucess!" % servername
+             return False
 
 def checkServer(servername):
     # 检查服务是否注册
@@ -138,33 +146,69 @@ def checkServer(servername):
         return False
     return True
 
-def stopServerName(servername):
+def stopServer(servername):
     #停止服务
     pid = getPid(servername)
-    #print "ss",pid
+    #print pid
     if pid:
         cmd_task_kill = "taskkill /F /pid %s" % pid
         stdout, stderr = execCmd(cmd_task_kill)
+        if stderr:
+            print stderr
         print "kill %s,%s" % (servername, pid)
+        time.sleep(checktime)
         pid = getPid(servername)
         if not pid:
             print 'kill service:%s sucees' % servername
             return True
         else:
+            print "kill service:%s Fail,check!!" % servername
             return False
+    # else:
+    #     # print "service:%s stoped sucess!" % servername
+    #     print "s"
+    #     return True
+def stopMain(serverName=""):
+    serverNameList = readConf(serverConfPath)
+    if serverName:
+        stopServer(serverName)
     else:
-        print "service:%s stop sucess!" % servername
-        return True
+        for serNameDict in serverNameList:
+            for serverName, Dict in serNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                stopServer(serverName)
 
-def startServerName(servername,filename):
+def startServer(servername):
     # 启动服务
-    call_bat = 'cmd.exe /c %s' % filename
-    print 'call bat %s' % filename
-    # stdout, stderr = exe_cmd_ssh(ssh, call_bat)
-    stdout, stderr =execCmd(call_bat)
-    if filename in stdout:
-        print 'bat name is err'
-        sys.exit(1)
+    serverNameList = readConf(serverConfPath)
+    for serverNameDict in serverNameList:
+        for serverName, Dict in serverNameDict.iteritems():
+            if serverName == "conf":
+                # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                continue
+            elif serverName == servername:
+                batpath = Dict["batpath"]
+                call_bat = 'cmd.exe /c %s' % batpath
+                stdout, stderr = execCmd(call_bat)
+                print stdout
+                if batpath in stderr:
+                    print 'batpath name is err'
+                    break
+                break
+
+def startMain(serverName=""):
+    if serverName:
+        startServer(serverName)
+    else:
+        serverNameList = readConf(serverConfPath)
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                startServer(serverName)
 
 def conn(ip, username, passwd,):
         # ssh连接函数
@@ -241,6 +285,8 @@ def readConf(confPath,serverNAME=""):
         return serverNameList
 
     # 部署针对单个服务的操作 ，且配置文件中存在
+
+#部署单函数 配置文件所有的服务部署
 def deployForServer(Tag, serverName, portDict):
     shutdown_port = portDict["shutdown_port"]
     http_port = portDict["http_port"]
@@ -248,7 +294,7 @@ def deployForServer(Tag, serverName, portDict):
     if Tag == "reinstall":
         # 清理老的部署文件，重新部署
         if checkServer(serverName):
-            stopServerName(serverName)
+            stopServer(serverName)
             time.sleep(1)
             cleanFile(serverName)
             # 从标准tomcat 复制到部署目录
@@ -275,7 +321,7 @@ def deployForServer(Tag, serverName, portDict):
             print "%s is installed" % serverName
     elif Tag == "uninstall":
         if checkServer(serverName):
-            stopServerName(serverName)
+            stopServer(serverName)
             installServer(serverName, 'uninstall')
             cleanFile(serverName)  # 清理老的部署文件，注销服务
             if not checkServer(serverName):
@@ -316,11 +362,104 @@ def deploy(Tag,serverNAME=""):
                 continue
             deployForServer(Tag,serverName,portDict)
 
+def sshCmd(Tag, ip, serverName):
+    try:
+        cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本 和传入参数
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        #pkey_file = '/root/.ssh/id_rsa'
+        pkey_file = '/root/.ssh/id_rsa'
+        key = paramiko.RSAKey.from_private_key_file(pkey_file)  # 生成秘钥对
+        ssh.connect(hostname=ip, username='root', pkey=key)
+        print "Connect to ", ip, " with "
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+    except:
+        print "Connect fail to ", ip, " with "
+        sys.exit(1)
+    # stdin, stdout, stderr = ssh.exec_command("cat /etc/sysconfig/network-scripts/ifcfg-eth0")
+    stdout = stdout.read()
+    stderr = stderr.read()
+    print stdout, stderr
+    ssh.close()
+
+def sshCmdMain(Tag, serverName):
+    # 远程调用主函数
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                       [servername]
+                       http_port = 8810
+                       shutdown_port = 8830
+                       war = com.hxh.xhw.upload.war
+                       ip = 192.168.0.159,192.168.0.59""" % serverConf
+        sys.exit()
+    if serverName:
+        try:
+            ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+        except:
+            print "Check Config File"
+            sys.exit()
+        for ip in ipList:
+            sshCmd(Tag, ip, serverName)
+    else:
+       serverNameList = readConf(serverConfPath)
+       for serverNameDict in serverNameList:
+           for serverName, portDict in serverNameDict.iteritems():
+               if serverName == "conf":
+                   # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                   continue
+               try:
+                   ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+               except:
+                   print "Check Config File"
+                   sys.exit()
+               for ip in ipList:
+                   sshCmd(Tag, ip, serverName)
+
+def Main(Tag,serverName=""):
+    deploymentDir, baseDeploymentName, baseTomcat = _init()
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                           [servername]
+                           http_port = 8810
+                           shutdown_port = 8830
+                           war = com.hxh.xhw.upload.war
+                           ip = 192.168.0.159,192.168.0.59""" % serverConf
+        sys.exit()
+        # 读取配置文件需要部署的服务名，根据设置的端口部署服务
+
+    if Tag == "stop":  # 停服务
+        stopMain(serverName)
+    elif Tag == "start":  # 启动服务
+        startMain(serverName)
+    elif Tag == "restart":  # 重启服务
+        stopMain(serverName)
+        startMain(serverName)
+    # elif Tag == "update":  # 更新发布新版本
+    #     updateMain(serverName)
+    elif Tag in ["install", "uninstall", "reinstall"]:  # 部署tomcat 环境
+        deploy(Tag, serverName)
+    # elif Tag == "send":  # 分发方法
+    #     sendWarToNodeMain(serverName)
+    # elif Tag == "rollback":
+    #     rollBackMain(serverName)
+    else:
+        print """Follow One or Two agrs,
+                           install|uninstall|reinstall:
+                           update:
+                           start|stop|restart:
+                           send:
+                           rollback"""
+
+    pass
+
 # 初始化 读取配置文件配置部署目录和基础部署文件的设置
 def _init():
     #serverConfPath = os.path.join(os.getcwd(), serverConf)
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
+
     serverConfList = readConf(serverConfPath)
     _serverConf = serverConfList[0]
     deploymentDir = _serverConf["conf"]["deploymentdir"]
@@ -341,27 +480,69 @@ def list_dir(path):
 
 if __name__ == "__main__":
     # 读取配置文件信息
+    deploymentDir, baseDeploymentName, baseTomcat = _init()
     #print readStartServerConf()
     #print readConf(serverConf)
 
-    deploymentDir, baseDeploymentName, baseTomcat = _init()
+    try:
+        Tag = sys.argv[1]
+    except:
+        print """Follow Agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback:[serverName] [remote]"""
+        sys.exit(1)
     if len(sys.argv) == 2:
-        tag = sys.argv[1]
-        if tag in ["install", "uninstall", "reinstall"]:
-            deploy(tag)
-        else:
-            print " only install,uninstall,reinstall"
+        Tag = sys.argv[1]
+        Main(Tag)
     elif len(sys.argv) == 3:
-        tag = sys.argv[1]
-        serverName = sys.argv[2]
-        if tag in ["install", "uninstall", "reinstall"]:
-            deploy(tag, serverName)
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        if not Tag in ["install", "uninstall", "reinstall"]:
+           if not checkServer(serName):
+               print "serverName is worry,please check"
+               sys.exit(1)
+        Main(Tag, serName)
+    elif len(sys.argv) == 4:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        remote = sys.argv[3]
+        if remote == "remote":
+            sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
         else:
-            print " only install,uninstall,reinstall"
+            print """Follow Agrs,
+                           install|uninstall|reinstall:
+                           update:
+                           start|stop|restart:
+                           send:
+                           rollback [serverName] [remote]"""
     else:
-        print "Follow One agrs,install|uninstall|reinstall"
-        print "Follow Two agrs,ServerNAME install|uninstall|reinstall"
-        sys.exit()
+        print """Follow Agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback [serverName] [remote]"""
+        sys.exit(1)
 
-
-
+    # deploymentDir, baseDeploymentName, baseTomcat = _init()
+    # if len(sys.argv) == 2:
+    #     tag = sys.argv[1]
+    #     if tag in ["install", "uninstall", "reinstall"]:
+    #         deploy(tag)
+    #     else:
+    #         print " only install,uninstall,reinstall"
+    # elif len(sys.argv) == 3:
+    #     tag = sys.argv[1]
+    #     serverName = sys.argv[2]
+    #     if tag in ["install", "uninstall", "reinstall"]:
+    #         deploy(tag, serverName)
+    #     else:
+    #         print " only install,uninstall,reinstall"
+    # else:
+    #     print "Follow One agrs,install|uninstall|reinstall"
+    #     print "Follow Two agrs,ServerNAME install|uninstall|reinstall"
+    #     sys.exit()
+    #
