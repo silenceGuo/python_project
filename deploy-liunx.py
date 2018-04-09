@@ -149,25 +149,25 @@ def update(serverName):
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     war = readConf(serverConfPath,serverName)[serverName]["war"]
-    deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
-    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
-    jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName,war)
+    deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
+    deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
+    jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
     if os.path.exists(deployWarPath):
         backWar(serverName)
     copyFile(jenkinsUploadDirWar, deployWarPath)
-    # if serverName == "upload":
-    #     cleanCachUpload(deployWarPathRoot)
-    # else:
-    #     if os.path.exists(deployWarPathRoot):
-    #         shutil.rmtree(deployWarPathRoot)
-    # unzipWar(deployWarPath, deployWarPathRoot)
+    if serverName == "upload":
+        cleanCachUpload(deployWarPathRoot)
+    else:
+        if os.path.exists(deployWarPathRoot):
+            shutil.rmtree(deployWarPathRoot)
+    unzipWar(deployWarPath, deployWarPathRoot)
 
 def updateMain(serverName):
     # 更新新版本并
     dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     serverConfPath = os.path.join(dirname, serverConf)
     if serverName:
-        stopServe(serverName)
+        stopMain(serverName)
         update(serverName)
         startMain(serverName)
     else:
@@ -177,7 +177,7 @@ def updateMain(serverName):
                 if serverName == "conf":
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
-                stopServe(serverName)
+                stopMain(serverName)
                 update(serverName)
                 startMain(serverName)
 
@@ -185,8 +185,8 @@ def startServer(serverName):
     startSh = joinPathName(deploymentAppSerDir, "%s%s", "bin/startup.sh") % (tomcatPrefix,serverName)
     binDir = joinPathName(deploymentAppSerDir, "%s%s", "bin/*") % (tomcatPrefix,serverName)
     deployDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix,serverName)
-    deployWarPath = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT.war") % serverName
-    deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+    deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
+    deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
     #cmd = "su - tomcat %s" %startSh
     chmodCmd = "chmod 755 -R %s" % binDir
     chmodCmd2 = "chmod 755 -R %s" % deployDir
@@ -286,7 +286,7 @@ def copyBaseTomcat(serverName):
 # 修改xml 配置文件
 def changeXml(serverName,shutdown_port="8128",http_port="8083"):
     deploymentDirTmp = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix, serverName)
-    deploydir = joinPathName(deploymentDir,"%s%s","webapps/")% ("tomcat7-",serverName)
+    deploydir = joinPathName(deploymentDir,"%s%s","webapps/")% (tomcatPrefix, serverName)
     xmlpath = os.path.join(deploymentDirTmp, "conf/server.xml")
     # print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
@@ -352,8 +352,8 @@ def deployForServer(Tag, serverName, portDict):
     #ajp_port = portDict["ajp_port"]
     jenkinsUploadDirServer = joinPathName(jenkinsUploadDir,"%s") % serverName
     deployDir = joinPathName(deploymentAppSerDir, "%s%s") % (tomcatPrefix, serverName)  # 部署工程目录
-    deployRoot = joinPathName(deploymentDir, "tomcat7-%s", "webapps/") % serverName
-    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)  # 备份目录
+    deployRoot = joinPathName(deploymentDir, "%s%s", "webapps/") % (tomcatPrefix,serverName)
+    bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName, tomcatPrefix, serverName) # 备份目录
     if not os.path.exists(deployRoot):
         os.makedirs(deployRoot)
     if not os.path.exists(bakdeployRoot):
@@ -440,7 +440,7 @@ def versionSort(list):
     return [i.vstring for i in vs]
 
 def getVersion(serverName):
-    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName, tomcatPrefix,serverName)
     versionIdList = []
     for i in os.listdir(bakdeployRoot):
         if i.split(".")[0] == "ROOT":
@@ -464,11 +464,11 @@ def getBackVersionId(serverName):
 
 def backWar(serverName):
     # 部署的war包
-    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
+    deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
     # 备份war包路径
-    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName,tomcatPrefix, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
-    bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
+    bakdeployRootWar = joinPathName(deploymentDir, "%s%s", "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName,tomcatPrefix, serverName, time.strftime("%Y-%m-%d-"), versionId)
 
     if os.path.exists(deployRootWar):
         copyFile(deployRootWar, bakdeployRootWar)
@@ -480,9 +480,9 @@ def rollBack(versionId, serverName):
     if not versionList:
         print "Not Back war File :%s" % serverName
     else:
-        bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
-        deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
-        deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+        bakdeployRootWar = joinPathName(deploymentDir, "%s%s", "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName, tomcatPrefix,serverName, versionId)
+        deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps", "ROOT.war") % (tomcatPrefix,serverName)
+        deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix,serverName)
         if not os.path.exists(bakdeployRootWar):
             print "File:%s is not exits" % bakdeployRootWar
         if os.path.exists(deployRootWar):
@@ -590,7 +590,6 @@ def sshCmdMain(Tag, serverName):
             sshCmd(Tag, ip, serverName)
     else:
        serverNameList = readConf(serverConfPath)
-       # print serverNameList
        for serverNameDict in serverNameList:
            for serverName, portDict in serverNameDict.iteritems():
                if serverName == "conf":
