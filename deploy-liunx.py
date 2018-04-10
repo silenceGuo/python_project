@@ -442,10 +442,13 @@ def versionSort(list):
 def getVersion(serverName):
     bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName, tomcatPrefix,serverName)
     versionIdList = []
-    for i in os.listdir(bakdeployRoot):
-        if i.split(".")[0] == "ROOT":
-            versionId = i.split(".")[1]
-            versionIdList.append(versionId)
+    try:
+       for i in os.listdir(bakdeployRoot):
+           if i.split(".")[0] == "ROOT":
+               versionId = i.split(".")[1]
+               versionIdList.append(versionId)
+    except:
+        return []
     if not versionIdList:
         return []
     return versionSort(versionIdList)  # 返回版本号升序列表
@@ -498,7 +501,7 @@ def rollBack(versionId, serverName):
             else:
                 if os.path.exists(deployWarPathRoot):
                     shutil.rmtree(deployWarPathRoot)
-            #unzipWar(deployRootWar, deployWarPathRoot)
+            unzipWar(deployRootWar, deployWarPathRoot)
             startMain(serverName)
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
