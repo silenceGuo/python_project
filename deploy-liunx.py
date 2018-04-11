@@ -179,7 +179,7 @@ def updateMain(serverName):
                     continue
                 stopMain(serverName)
                 update(serverName)
-                startMain(serverName)
+                #startMain(serverName)
 
 def startServer(serverName):
     startSh = joinPathName(deploymentAppSerDir, "%s%s", "bin/startup.sh") % (tomcatPrefix,serverName)
@@ -465,18 +465,50 @@ def getBackVersionId(serverName):
         else:
             return int(versionIdList[-1].split("-")[-1].split("V")[-1]) + int(1)
 
+# 返回时间戳
+def getTimeStamp(filePath):
+    filePath = unicode(filePath, 'utf8')
+    t = os.path.getmtime(filePath)
+    return t
+
 def backWar(serverName):
     # 部署的war包
     deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
     # 备份war包路径
     bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName,tomcatPrefix, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
+    try:
+        lastVersinId = getVersion(serverName)[-1]
+    except:
+        # 获取 备份文件列表 如果没有备份 返回备份起始版本1
+        lastVersinId = [time.strftime("%Y-%m-%d-")+"V1"][-1]
     bakdeployRootWar = joinPathName(deploymentDir, "%s%s", "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName,tomcatPrefix, serverName, time.strftime("%Y-%m-%d-"), versionId)
+    lastbakdeployRootWar = joinPathName(deploymentDir,"%s%s", "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName,tomcatPrefix, serverName, lastVersinId)
 
+    # if os.path.exists(deployRootWar):
+    #     copyFile(deployRootWar, bakdeployRootWar)
+    #     if os.path.exists(bakdeployRootWar):
+    #         print "back %s sucess" % deployRootWar
+    if not os.path.exists(bakdeployRoot):
+        os.mkdir(bakdeployRoot)
     if os.path.exists(deployRootWar):
-        copyFile(deployRootWar, bakdeployRootWar)
-        if os.path.exists(bakdeployRootWar):
-            print "back %s sucess" % deployRootWar
+        print lastbakdeployRootWar
+        if not os.path.exists(lastbakdeployRootWar):
+            print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
+            copyFile(deployRootWar, bakdeployRootWar)
+        else:
+            # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
+            if not getTimeStamp(deployRootWar) == getTimeStamp(lastbakdeployRootWar):
+                print "back %s >>> 11%s" % (deployRootWar, bakdeployRootWar)
+                copyFile(deployRootWar, bakdeployRootWar)
+                if os.path.exists(bakdeployRootWar):
+                    print "back %s sucess" % bakdeployRootWar
+                else:
+                    print "back %s fail" % deployRootWar
+            else:
+                print "File is not mod,not need back"
+    else:
+        print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
 def rollBack(versionId, serverName):
     versionList = getVersion(serverName)
@@ -635,6 +667,10 @@ def Main(Tag,serverNAME=""):
         sendWarToNodeMain(serverNAME)
     elif Tag == "rollback":
         rollBackMain(serverNAME)
+    elif Tag == "back":
+        pass
+        # backWar("upload")
+        # backWar("b2b-trade-api")
     else:
         print """Follow One or Two agrs,
                        install|uninstall|reinstall:
