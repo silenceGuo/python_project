@@ -18,7 +18,6 @@ import ConfigParser
 import paramiko
 from subprocess import PIPE,Popen
 
-
 # 默认部署工程目录，默认是webapps
 deploydir = "webapps"
 #部署服务和端口配置文件server.conf,在同一目录下
@@ -30,7 +29,7 @@ serverConfPath = os.path.join(dirname, serverConf)
 checktime = 5
 # 返回部署工程的目标目录
 def deploymentTomcatName(serverName):
-    return os.path.join(deploymentDir, "%s%s") % (baseDeploymentName, serverName)
+    return os.path.join(deploymentDir, "%s%s") % (tomcatPrefix, serverName)
 
 def joinPathName(serverPath, serverName, *args):
     # 目录拼接　
@@ -46,7 +45,6 @@ def copyBaseTomcat(serverName):
 
 def cleanFile(serverName):
         path = os.path.join(baseTomcat, deploymentTomcatName(serverName))
-        print path
         if os.path.exists(path):
             print "Clean %s" % path
             if os.path.isfile(path):
@@ -55,6 +53,8 @@ def cleanFile(serverName):
             # 删除目录
             else:
                 shutil.rmtree(path)
+        else:
+            print "%s is not exists" % path
 # 读取xml 配置文件
 def readXml(serverName):
     xmlPath = os.path.join(deploymentTomcatName(serverName), "conf/server.xml")
@@ -139,7 +139,7 @@ def getPid(servername):
             print 'net_pid :', pid
             return pid
         else:
-             print "service:%s is stoped sucess!" % servername
+             print "service:%s is stoped !" % servername
              return False
 
 def checkServer(servername):
@@ -172,6 +172,7 @@ def stopServer(servername):
     #     # print "service:%s stoped sucess!" % servername
     #     print "s"
     #     return True
+
 def stopMain(serverName=""):
     serverNameList = readConf(serverConfPath)
     if serverName:
@@ -202,9 +203,33 @@ def startServer(servername):
                     break
                 break
 
+def startServerPy(servername):
+    # 启动服务
+    if checkServer(servername):
+        war = readConf(serverConfPath, servername)[servername]["war"]
+        deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, servername)
+        deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, servername)
+        jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
+        if os.path.exists(deployWarPathRoot):
+             shutil.rmtree(deployWarPathRoot)
+        call_bat = 'net start %s' % servername
+        execCmd(call_bat)
+        time.sleep(checktime)
+        for i in xrange(1,checktime):
+            print "check server:%s Number:%s " % (servername, i)
+            time.sleep(checktime)
+            if getPid(servername):
+                    print "start %s sucess" % servername
+                    break
+        print "start server:%s fail" % servername
+
+    else:
+        print "server name is err :%s" %servername
+
+
 def startMain(serverName=""):
     if serverName:
-        startServer(serverName)
+        startServerPy(serverName)
     else:
         serverNameList = readConf(serverConfPath)
         for serverNameDict in serverNameList:
@@ -212,38 +237,8 @@ def startMain(serverName=""):
                 if serverName == "conf":
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
-                startServer(serverName)
-
-def conn(ip, username, passwd,):
-        # ssh连接函数
-        import paramiko
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(ip, 22, username, passwd, timeout=5)
-            print "Connect to ", ip, " with ", username
-            global curr_prompt
-            curr_prompt = username + "@" + ip + ">>"
-            return ssh
-        except:
-            print "Connect fail to ", ip, " with ", username
-            sys.exit(1)
-
-def exe_cmd_ssh(ssh, cmd):
-        # ssh连接成功，执行cmd命令
-        if (ssh == None):
-            print "Didn't connect to a server. Use '!conn' to connect please."
-            return
-        try:
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            stdout = stdout.read()
-            stderr = stderr.read()
-            print 'out:', stdout
-            print 'err:', stderr
-            return stdout, stderr
-        except:
-            print 'command is err'
-            sys.exit(1)
+                #startServer(serverName)
+                startServerPy(serverName)
 
 def writeLog(log_file,loginfo):
     # 写日志函数
@@ -422,6 +417,37 @@ def sshCmdMain(Tag, serverName):
                for ip in ipList:
                    sshCmd(Tag, ip, serverName)
 
+def conn(ip, username, passwd, ):
+        # ssh连接函数
+        import paramiko
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(ip, 22, username, passwd, timeout=5)
+            print "Connect to ", ip, " with ", username
+            global curr_prompt
+            curr_prompt = username + "@" + ip + ">>"
+            return ssh
+        except:
+            print "Connect fail to ", ip, " with ", username
+            sys.exit(1)
+
+def exe_cmd_ssh(ssh, cmd):
+    # ssh连接成功，执行cmd命令
+    if (ssh == None):
+        print "Didn't connect to a server. Use '!conn' to connect please."
+        return
+    try:
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        stdout = stdout.read()
+        stderr = stderr.read()
+        print 'out:', stdout
+        print 'err:', stderr
+        return stdout, stderr
+    except:
+        print 'command is err'
+        sys.exit(1)
+
 def copyFile(sourfile,disfile):
     try:
         print "copy file:%s,to:%s" % (sourfile, disfile)
@@ -438,12 +464,15 @@ def versionSort(list):
     return [i.vstring for i in vs]
 
 def getVersion(serverName):
-    bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    bakdeployRoot = joinPathName(bakWarDir, "bak-%s%s") % (tomcatPrefix,serverName)
     versionIdList = []
-    for i in os.listdir(bakdeployRoot):
-        if i.split(".")[0] == "ROOT":
-            versionId = i.split(".")[1]
-            versionIdList.append(versionId)
+    try:
+       for i in os.listdir(bakdeployRoot):
+           if i.split(".")[0] == "ROOT":
+               versionId = i.split(".")[1]
+               versionIdList.append(versionId)
+    except:
+        return []
     if not versionIdList:
         return []
     return versionSort(versionIdList)  # 返回版本号升序列表
@@ -462,26 +491,46 @@ def getBackVersionId(serverName):
 
 def backWar(serverName):
     # 部署的war包
-
-    deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps","ROOT.war") % serverName
+    deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
     # 备份war包路径
-    #bakdeployRoot = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s") % (serverName, serverName)
+    bakdeployRoot = joinPathName(bakWarDir, "bak-%s%s") % (tomcatPrefix, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
-    bakdeployRootWar = joinPathName(bakWarDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%sV%s.war") % (serverName, serverName, time.strftime("%Y-%m-%d-"), versionId)
-
+    try:
+        lastVersinId = getVersion(serverName)[-1]
+    except:
+        # 获取 备份文件列表 如果没有备份 返回备份起始版本1
+        lastVersinId = [time.strftime("%Y-%m-%d-")+"V1"][-1]
+    #bakdeployRootWar = joinPathName(deploymentDir, "%s%s", "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName,tomcatPrefix, serverName, time.strftime("%Y-%m-%d-"), versionId)
+    bakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName, time.strftime("%Y-%m-%d-"), versionId)
+    lastbakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName,lastVersinId)
+    print lastbakdeployRootWar
+    if not os.path.exists(bakdeployRoot):
+        os.mkdir(bakdeployRoot)
     if os.path.exists(deployRootWar):
-        copyFile(deployRootWar, bakdeployRootWar)
-        if os.path.exists(bakdeployRootWar):
-            print "back %s sucess" % deployRootWar
+        if not os.path.exists(lastbakdeployRootWar):
+            print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
+            copyFile(deployRootWar, bakdeployRootWar)
+        else:
+            # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
+            if not getTimeStamp(deployRootWar) == getTimeStamp(lastbakdeployRootWar):
+                copyFile(deployRootWar, bakdeployRootWar)
+                if os.path.exists(bakdeployRootWar):
+                    print "back %s sucess" % bakdeployRootWar
+                else:
+                    print "back %s fail" % deployRootWar
+            else:
+                print "File is not mod"
+    else:
+        print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
 def rollBack(versionId, serverName):
     versionList = getVersion(serverName)
     if not versionList:
         print "Not Back war File :%s" % serverName
     else:
-        bakdeployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "bak-tomcat7-%s", "ROOT.%s.war") % (serverName, serverName, versionId)
-        deployRootWar = joinPathName(deploymentDir, "tomcat7-%s", "webapps", "ROOT.war") % serverName
-        deployWarPathRoot = joinPathName(deploymentDir, "tomcat7-%s/webapps/ROOT") % serverName
+        bakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName, versionId)
+        deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps", "ROOT.war") % (tomcatPrefix,serverName)
+        deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix,serverName)
         if not os.path.exists(bakdeployRootWar):
             print "File:%s is not exits" % bakdeployRootWar
         if os.path.exists(deployRootWar):
@@ -493,14 +542,15 @@ def rollBack(versionId, serverName):
             print "Rollback Version:%s " % versionId
             stopMain(serverName)
             if serverName == "upload":
-                cleanCachUpload(deployWarPathRoot)
+                pass
+                #cleanCachUpload(deployWarPathRoot)
             else:
                 if os.path.exists(deployWarPathRoot):
                     shutil.rmtree(deployWarPathRoot)
             #unzipWar(deployRootWar, deployWarPathRoot)
             startMain(serverName)
         else:
-            print "check File:%s ,rollback Faile" % deployRootWar
+            print "check File:%s ,rollback Fail" % deployRootWar
 
 def rollBackMain(serverNAME):
     # 默认回滚发布前上一个版本
@@ -533,6 +583,99 @@ def rollBackMain(serverNAME):
                 lastVersinId = getVersion(serverName)[-1]
                 rollBack(lastVersinId, serverName)
 
+def unzipWar(zipfilePath,unzipfilepath):
+    import zipfile
+    f = zipfile.ZipFile(zipfilePath, 'r')
+    print 'unzip file:%s >>>>>>to:%s' % (zipfilePath, unzipfilepath)
+    for file in f.namelist():
+        f.extract(file, unzipfilepath)
+
+# 发布服务
+def update(serverName):
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    war = readConf(serverConfPath,serverName)[serverName]["war"]
+    deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
+    deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
+    #jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
+    jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s") % war
+    jenkinsUploadDirPath = joinPathName(jenkinsUploadDir,"%s") % serverName
+    if not os.path.exists(jenkinsUploadDirPath):
+        os.mkdir(jenkinsUploadDirPath)
+    if os.path.exists(deployWarPath):
+        backWar(serverName)
+    if os.path.exists(jenkinsUploadDirWar):
+        copyFile(jenkinsUploadDirWar, deployWarPath)
+    else:
+        print "File:%s is not exists" % jenkinsUploadDirWar
+        sys.exit(1)
+
+def updatePy(serverName):
+    # 更新版本 服务
+    if checkServer(serverName):
+        war = readConf(serverConfPath, serverName)[serverName]["war"]
+        deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
+        jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
+        if os.path.exists(deployWarPath):
+             os.remove(deployWarPath)
+             if not os.path.exists(deployWarPath):
+                 print "clean history %s sucess" % deployWarPath
+                 if os.path.exists(jenkinsUploadDirWar):
+                     copyFile(jenkinsUploadDirWar,deployWarPath)
+                     if os.path.exists(deployWarPath):
+                         print "update %s sucess" % deployWarPath
+                     else:
+                         print "update %s fail" % deployWarPath
+                 else:
+                     print "file:%s  is not exists" % jenkinsUploadDirWar
+             else:
+                 print "clean history %s fail" % deployWarPath
+                     #startServerPy(serverName)
+
+def updateMain(serverName):
+    # 更新新版本并
+    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    serverConfPath = os.path.join(dirname, serverConf)
+    if serverName:
+        stopMain(serverName)
+        updatePy(serverName)
+        #startMain(serverName)
+    else:
+        serverNameList = readConf(serverConfPath)
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                stopMain(serverName)
+                updatePy(serverName)
+                #startMain(serverName)
+
+def md5File(file):
+    import hashlib
+    md5 = hashlib.md5()
+    with open(file) as fd:
+         while True:
+             data= fd.read(4096)
+             if data:
+                 md5.update(data)
+             else:
+                 break
+    return md5.hexdigest()
+
+def TimeStampToTime(timestamp):
+    # 时间戳转换为时间
+    timeStruct = time.localtime(timestamp)
+    return time.strftime('%Y-%m-%d %H:%M:%S',timeStruct)
+
+def getTimeStamp(filePath):
+    # 返回修改时间 时间戳
+    filePath = unicode(filePath, 'utf8')
+    t = os.path.getmtime(filePath)
+    return t
+    #return TimeStampToTime(t)
+
+
 def Main(Tag,serverName=""):
     _init()
     #deploymentDir, baseDeploymentName, baseTomcat = _init()
@@ -554,14 +697,19 @@ def Main(Tag,serverName=""):
     elif Tag == "restart":  # 重启服务
         stopMain(serverName)
         startMain(serverName)
-    # elif Tag == "update":  # 更新发布新版本
-    #     updateMain(serverName)
+    elif Tag == "update":  # 更新发布新版本
+        updateMain(serverName)
+        startMain(serverName)
     elif Tag in ["install", "uninstall", "reinstall"]:  # 部署tomcat 环境
         deploy(Tag, serverName)
     # elif Tag == "send":  # 分发方法
     #     sendWarToNodeMain(serverName)
-    # elif Tag == "rollback":
-    #     rollBackMain(serverName)
+    elif Tag == "rollback":
+        rollBackMain(serverName)
+    elif Tag == "back":
+        #backWar(serverName)
+        backWar("upload")
+        #backWar("b2b-trade-api")
     else:
         print """Follow One or Two agrs,
                            install|uninstall|reinstall:
@@ -573,18 +721,18 @@ def Main(Tag,serverName=""):
 
 # 初始化读取配置文件配置部署目录和基础部署文件的设置
 def _init():
+    global deploymentDir, baseTomcat, tomcatPrefix, pyFile, bakWarDir, jenkinsUploadDir
+
     serverConfList = readConf(serverConfPath)
     _serverConf = serverConfList[0]
-    deploymentDir = _serverConf["conf"]["deploymentdir"]
-    baseDeploymentName = _serverConf["conf"]["basedeploymentname"]
-    baseTomcat = _serverConf["conf"]["basetomcat"]
-    pyFile = _serverConf["conf"]["pyFile"]
-    bakWarDir = _serverConf["conf"]["bakWarDir"]
-    jenkinsUploadDir = _serverConf["conf"]["jenkinsUploadDir"]
-    global deploymentDir,\
-            baseTomcat, baseTomcat,\
-            baseDeploymentName, pyFile, \
-            bakWarDir, jenkinsUploadDir
+    deploymentDir = _serverConf["conf"]["deploymentdir"] # 工程部署目录
+    tomcatPrefix = _serverConf["conf"]["tomcatprefix"] # tomcat 前缀
+    baseTomcat = _serverConf["conf"]["basetomcat"] # 基础 tomcat 路径
+    pyFile = _serverConf["conf"]["pyfile"] # 远程脚本路径
+    bakWarDir = _serverConf["conf"]["bakwardir"] # 备份 war包路径
+    jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"] # jenkins 上传路径
+
+   # global deploymentDir,baseTomcat,tomcatPrefix, pyFile,bakWarDir, jenkinsUploadDir
     if not os.path.exists(deploymentDir):
         os.makedirs(deploymentDir)
     if not os.path.exists(bakWarDir):
@@ -606,12 +754,9 @@ def list_dir(path):
     return ser_dict
 
 if __name__ == "__main__":
+
+
     # 读取配置文件信息
-
-    #deploymentDir, baseDeploymentName, baseTomcat = _init()
-    #print readStartServerConf()
-    #print readConf(serverConf)
-
     try:
         Tag = sys.argv[1]
     except:
