@@ -520,7 +520,7 @@ def backWar(serverName):
                 else:
                     print "back %s fail" % deployRootWar
             else:
-                print "File is not mod"
+                print "File is not modify"
     else:
         print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
