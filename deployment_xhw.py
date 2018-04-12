@@ -221,11 +221,12 @@ def startServerPy(servername):
             if getPid(servername):
                     print "start %s sucess" % servername
                     break
-        print "start server:%s fail" % servername
-
+        if not getPid(servername):
+            print "start server:%s fail" % servername
+        else:
+            print "start %s sucess" % servername
     else:
         print "server name is err :%s" %servername
-
 
 def startMain(serverName=""):
     if serverName:
@@ -523,6 +524,18 @@ def backWar(serverName):
     else:
         print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
+def backWarMain(serverNAME):
+    serverNameList = readConf(serverConfPath)
+    if serverNAME:
+       backWar(serverNAME)
+    else:
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                backWar(serverName)
+
 def rollBack(versionId, serverName):
     versionList = getVersion(serverName)
     if not versionList:
@@ -540,22 +553,20 @@ def rollBack(versionId, serverName):
         if os.path.exists(deployRootWar):
             print "RollBack Sucess,update serverName:%s" % serverName
             print "Rollback Version:%s " % versionId
-            stopMain(serverName)
-            if serverName == "upload":
-                pass
-                #cleanCachUpload(deployWarPathRoot)
-            else:
-                if os.path.exists(deployWarPathRoot):
-                    shutil.rmtree(deployWarPathRoot)
-            #unzipWar(deployRootWar, deployWarPathRoot)
-            startMain(serverName)
+            #stopMain(serverName)
+            # if serverName == "upload":
+            #     pass
+            #     #cleanCachUpload(deployWarPathRoot)
+            # else:
+            #     if os.path.exists(deployWarPathRoot):
+            #         shutil.rmtree(deployWarPathRoot)
         else:
             print "check File:%s ,rollback Fail" % deployRootWar
 
 def rollBackMain(serverNAME):
     # 默认回滚发布前上一个版本
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
+    # dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    # serverConfPath = os.path.join(dirname, serverConf)
     serverNameList = readConf(serverConfPath)
 
     if not os.path.exists(serverConfPath):
@@ -597,7 +608,7 @@ def update(serverName):
     war = readConf(serverConfPath,serverName)[serverName]["war"]
     deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
     deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
-    #jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
+    # jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
     jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s") % war
     jenkinsUploadDirPath = joinPathName(jenkinsUploadDir,"%s") % serverName
     if not os.path.exists(jenkinsUploadDirPath):
@@ -608,16 +619,19 @@ def update(serverName):
         copyFile(jenkinsUploadDirWar, deployWarPath)
     else:
         print "File:%s is not exists" % jenkinsUploadDirWar
-        sys.exit(1)
+        #sys.exit(1)
 
 def updatePy(serverName):
-    # 更新版本 服务
+    # 更新版本 服务 只是将war包复制到工程目录并 重命名
     if checkServer(serverName):
         war = readConf(serverConfPath, serverName)[serverName]["war"]
         deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
         jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
-        if os.path.exists(deployWarPath):
-             os.remove(deployWarPath)
+        if os.path.exists(jenkinsUploadDirWar):
+
+             backWar(serverName)
+             if os.path.exists(deployWarPath):
+                  os.remove(deployWarPath)
              if not os.path.exists(deployWarPath):
                  print "clean history %s sucess" % deployWarPath
                  if os.path.exists(jenkinsUploadDirWar):
@@ -630,16 +644,11 @@ def updatePy(serverName):
                      print "file:%s  is not exists" % jenkinsUploadDirWar
              else:
                  print "clean history %s fail" % deployWarPath
-                     #startServerPy(serverName)
 
 def updateMain(serverName):
-    # 更新新版本并
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
+    # 更新版本 服务 只是将war包复制到工程目录并 重命名
     if serverName:
-        stopMain(serverName)
         updatePy(serverName)
-        #startMain(serverName)
     else:
         serverNameList = readConf(serverConfPath)
         for serverNameDict in serverNameList:
@@ -647,9 +656,8 @@ def updateMain(serverName):
                 if serverName == "conf":
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
-                stopMain(serverName)
                 updatePy(serverName)
-                #startMain(serverName)
+
 
 def md5File(file):
     import hashlib
@@ -669,12 +677,11 @@ def TimeStampToTime(timestamp):
     return time.strftime('%Y-%m-%d %H:%M:%S',timeStruct)
 
 def getTimeStamp(filePath):
-    # 返回修改时间 时间戳
+    # 返回修改时间时间戳
     filePath = unicode(filePath, 'utf8')
     t = os.path.getmtime(filePath)
     return t
     #return TimeStampToTime(t)
-
 
 def Main(Tag,serverName=""):
     _init()
@@ -699,7 +706,7 @@ def Main(Tag,serverName=""):
         startMain(serverName)
     elif Tag == "update":  # 更新发布新版本
         updateMain(serverName)
-        startMain(serverName)
+        #startMain(serverName)
     elif Tag in ["install", "uninstall", "reinstall"]:  # 部署tomcat 环境
         deploy(Tag, serverName)
     # elif Tag == "send":  # 分发方法
@@ -707,9 +714,7 @@ def Main(Tag,serverName=""):
     elif Tag == "rollback":
         rollBackMain(serverName)
     elif Tag == "back":
-        #backWar(serverName)
-        backWar("upload")
-        #backWar("b2b-trade-api")
+        backWarMain(serverName)
     else:
         print """Follow One or Two agrs,
                            install|uninstall|reinstall:
@@ -718,19 +723,18 @@ def Main(Tag,serverName=""):
                            send:
                            rollback"""
 
-
 # 初始化读取配置文件配置部署目录和基础部署文件的设置
 def _init():
     global deploymentDir, baseTomcat, tomcatPrefix, pyFile, bakWarDir, jenkinsUploadDir
 
     serverConfList = readConf(serverConfPath)
     _serverConf = serverConfList[0]
-    deploymentDir = _serverConf["conf"]["deploymentdir"] # 工程部署目录
-    tomcatPrefix = _serverConf["conf"]["tomcatprefix"] # tomcat 前缀
-    baseTomcat = _serverConf["conf"]["basetomcat"] # 基础 tomcat 路径
-    pyFile = _serverConf["conf"]["pyfile"] # 远程脚本路径
-    bakWarDir = _serverConf["conf"]["bakwardir"] # 备份 war包路径
-    jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"] # jenkins 上传路径
+    deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
+    tomcatPrefix = _serverConf["conf"]["tomcatprefix"]  # tomcat 前缀
+    baseTomcat = _serverConf["conf"]["basetomcat"]  # 基础 tomcat 路径
+    pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
+    bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
+    jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
 
    # global deploymentDir,baseTomcat,tomcatPrefix, pyFile,bakWarDir, jenkinsUploadDir
     if not os.path.exists(deploymentDir):
@@ -755,7 +759,6 @@ def list_dir(path):
 
 if __name__ == "__main__":
 
-
     # 读取配置文件信息
     try:
         Tag = sys.argv[1]
@@ -778,19 +781,20 @@ if __name__ == "__main__":
                print "serverName is worry,please check"
                sys.exit(1)
         Main(Tag, serName)
-    elif len(sys.argv) == 4:
-        Tag = sys.argv[1]
-        serName = sys.argv[2]
-        remote = sys.argv[3]
-        if remote == "remote":
-            sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
-        else:
-            print """Follow Agrs,
-                           install|uninstall|reinstall:
-                           update:
-                           start|stop|restart:
-                           send:
-                           rollback [serverName] [remote]"""
+    # 远程调用 目前windows 都是公网连接 不需要远程调用
+    # elif len(sys.argv) == 4:
+    #     Tag = sys.argv[1]
+    #     serName = sys.argv[2]
+    #     remote = sys.argv[3]
+    #     if remote == "remote":
+    #         sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
+    #     else:
+    #         print """Follow Agrs,
+    #                        install|uninstall|reinstall:
+    #                        update:
+    #                        start|stop|restart:
+    #                        send:
+    #                        rollback [serverName] [remote]"""
     else:
         print """Follow Agrs,
                install|uninstall|reinstall:
