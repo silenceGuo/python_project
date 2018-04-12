@@ -174,7 +174,7 @@ def stopServer(servername):
     #     return True
 
 def stopMain(serverName=""):
-    serverNameList = readConf(serverConfPath)
+
     if serverName:
         stopServer(serverName)
     else:
@@ -187,7 +187,7 @@ def stopMain(serverName=""):
 
 def startServer(servername):
     # 启动服务
-    serverNameList = readConf(serverConfPath)
+
     for serverNameDict in serverNameList:
         for serverName, Dict in serverNameDict.iteritems():
             if serverName == "conf":
@@ -232,7 +232,6 @@ def startMain(serverName=""):
     if serverName:
         startServerPy(serverName)
     else:
-        serverNameList = readConf(serverConfPath)
         for serverNameDict in serverNameList:
             for serverName, portDict in serverNameDict.iteritems():
                 if serverName == "conf":
@@ -335,15 +334,9 @@ def deployForServer(Tag, serverName, portDict):
 
 #部署主函数 配置文件所有的服务部署
 def deploy(Tag,serverNAME=""):
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
-    if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s "% serverConfPath
-        print """ %s like this:
-                   [servername]
-                   http_port = 8810
-                   shutdown_port = 8830""" % serverConf
-        sys.exit()
+    # dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+    # serverConfPath = os.path.join(dirname, serverConf)
+
     # 读取配置文件需要部署的服务名，根据设置的端口部署服务
     if serverNAME:
         serverNameDict = readConf(serverConfPath,serverNAME)
@@ -352,8 +345,6 @@ def deploy(Tag,serverNAME=""):
         # http_port = serverNameDict[serverNAME]["http_port"]
         # ajp_port = serverNameDict[serverNAME]["ajp_port"]
         sys.exit()
-    serverNameList = readConf(serverConfPath)
-    #print serverNameList
     for serverNameDict in serverNameList:
         # print serverNameDict
         for serverName, portDict in serverNameDict.iteritems():
@@ -384,17 +375,15 @@ def sshCmd(Tag, ip, serverName):
 
 def sshCmdMain(Tag, serverName):
     # 远程调用主函数
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
-    if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s " % serverConfPath
-        print """ %s like this:
-                       [servername]
-                       http_port = 8810
-                       shutdown_port = 8830
-                       war = com.hxh.xhw.upload.war
-                       ip = 192.168.0.159,192.168.0.59""" % serverConf
-        sys.exit()
+    # if not os.path.exists(serverConfPath):
+    #     print "serverconf is not exists,check serverconf %s " % serverConfPath
+    #     print """ %s like this:
+    #                    [servername]
+    #                    http_port = 8810
+    #                    shutdown_port = 8830
+    #                    war = com.hxh.xhw.upload.war
+    #                    ip = 192.168.0.159,192.168.0.59""" % serverConf
+    #     sys.exit()
     if serverName:
         try:
             ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
@@ -404,7 +393,6 @@ def sshCmdMain(Tag, serverName):
         for ip in ipList:
             sshCmd(Tag, ip, serverName)
     else:
-       serverNameList = readConf(serverConfPath)
        for serverNameDict in serverNameList:
            for serverName, portDict in serverNameDict.iteritems():
                if serverName == "conf":
@@ -525,7 +513,6 @@ def backWar(serverName):
         print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
 def backWarMain(serverNAME):
-    serverNameList = readConf(serverConfPath)
     if serverNAME:
        backWar(serverNAME)
     else:
@@ -565,10 +552,6 @@ def rollBack(versionId, serverName):
 
 def rollBackMain(serverNAME):
     # 默认回滚发布前上一个版本
-    # dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    # serverConfPath = os.path.join(dirname, serverConf)
-    serverNameList = readConf(serverConfPath)
-
     if not os.path.exists(serverConfPath):
         print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
@@ -603,8 +586,6 @@ def unzipWar(zipfilePath,unzipfilepath):
 
 # 发布服务
 def update(serverName):
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
     war = readConf(serverConfPath,serverName)[serverName]["war"]
     deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
     deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
@@ -650,7 +631,6 @@ def updateMain(serverName):
     if serverName:
         updatePy(serverName)
     else:
-        serverNameList = readConf(serverConfPath)
         for serverNameDict in serverNameList:
             for serverName, portDict in serverNameDict.iteritems():
                 if serverName == "conf":
@@ -685,18 +665,7 @@ def getTimeStamp(filePath):
 
 def Main(Tag,serverName=""):
     _init()
-    #deploymentDir, baseDeploymentName, baseTomcat = _init()
-    if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s " % serverConfPath
-        print """ %s like this:
-                           [servername]
-                           http_port = 8810
-                           shutdown_port = 8830
-                           war = com.hxh.xhw.upload.war
-                           ip = 192.168.0.159,192.168.0.59""" % serverConf
-        sys.exit()
-        # 读取配置文件需要部署的服务名，根据设置的端口部署服务
-
+    # 读取配置文件需要部署的服务名，根据设置的端口部署服务
     if Tag == "stop":  # 停服务
         stopMain(serverName)
     elif Tag == "start":  # 启动服务
@@ -743,6 +712,19 @@ def _init():
         os.makedirs(bakWarDir)
     if not os.path.exists(jenkinsUploadDir):
         os.makedirs(jenkinsUploadDir)
+    if not os.path.exists(serverConfPath):
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
+        print """ %s like this:
+                   [b2b-trade-api]
+                   http_port = 8048
+                   ajp_port = 8148
+                   shutdown_port = 8248
+                   war = com.hxh.xhw.upload.war
+                   ip = 192.168.0.159,192.168.0.59""" % serverConf
+        sys.exit()
+    else:
+        global serverNameList
+        serverNameList = readConf(serverConfPath)
 
     # serverConf = _serverConf["conf"]["serverConf"]
     #return deploymentDir, baseDeploymentName, baseTomcat
@@ -766,6 +748,7 @@ if __name__ == "__main__":
         print """Follow Agrs,
                install|uninstall|reinstall:
                update:
+               back:
                start|stop|restart:
                send:
                rollback:[serverName] [remote]"""
@@ -799,6 +782,7 @@ if __name__ == "__main__":
         print """Follow Agrs,
                install|uninstall|reinstall:
                update:
+               back:
                start|stop|restart:
                send:
                rollback [serverName] [remote]"""
