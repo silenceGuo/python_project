@@ -31,7 +31,8 @@ baseTomcat = "/home/tomcat7-/"
 tomcatPrefix = "tomcat7-"
 pyFile ="/home/scripts/deploy-liunx.py" # 指程服务器py脚本路径
 
-
+dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+serverConfPath = os.path.join(dirname, serverConf)
 def _init():
     # 初始化基础目录
     if not os.path.exists(jenkinsUploadDir):
@@ -153,23 +154,26 @@ def update(serverName):
     deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
     jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
     if os.path.exists(deployWarPath):
-        backWar(serverName)
-    copyFile(jenkinsUploadDirWar, deployWarPath)
-    if serverName == "upload":
-        cleanCachUpload(deployWarPathRoot)
+        #backWar(serverName)
+        backWarMain(serverName)
+    if os.path.exists(jenkinsUploadDirWar):
+        copyFile(jenkinsUploadDirWar, deployWarPath)
     else:
-        if os.path.exists(deployWarPathRoot):
-            shutil.rmtree(deployWarPathRoot)
-    unzipWar(deployWarPath, deployWarPathRoot)
+        print "File:%s is not exists" % jenkinsUploadDirWar
+    # if serverName == "upload":
+    #     cleanCachUpload(deployWarPathRoot)
+    # else:
+    #     if os.path.exists(deployWarPathRoot):
+    #         shutil.rmtree(deployWarPathRoot)
+
 
 def updateMain(serverName):
     # 更新新版本并
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
+
     if serverName:
-        stopMain(serverName)
+
         update(serverName)
-        startMain(serverName)
+
     else:
         serverNameList = readConf(serverConfPath)
         for serverNameDict in serverNameList:
@@ -177,9 +181,9 @@ def updateMain(serverName):
                 if serverName == "conf":
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
-                stopMain(serverName)
+
                 update(serverName)
-                #startMain(serverName)
+
 
 def startServer(serverName):
     startSh = joinPathName(deploymentAppSerDir, "%s%s", "bin/startup.sh") % (tomcatPrefix,serverName)
@@ -217,7 +221,6 @@ def startServer(serverName):
         execSh(chownCmd)
         execSh(chownCmd2)
         execSh(chownCmd3)
-
         stdout, stderr = execSh(cmd)  # 执行 启动服务命令
         if stdout:
             print "stdout:%s" % stdout
@@ -232,8 +235,6 @@ def startServer(serverName):
         print "Server:%s,Sucessed pid:%s" % (serverName, pid)
 
 def startMain(serverName):
-    dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-    serverConfPath = os.path.join(dirname, serverConf)
     if serverName:
         startServer(serverName)
     else:
@@ -473,7 +474,7 @@ def getTimeStamp(filePath):
 
 def backWar(serverName):
     # 部署的war包
-    deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
+    deployRootWar = joinPathName(deploymentDir, tomcatPrefix,serverName, "webapps","ROOT.war") #% (tomcatPrefix,serverName)
     # 备份war包路径
     bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName,tomcatPrefix, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
@@ -492,23 +493,38 @@ def backWar(serverName):
     if not os.path.exists(bakdeployRoot):
         os.mkdir(bakdeployRoot)
     if os.path.exists(deployRootWar):
-        print lastbakdeployRootWar
+
         if not os.path.exists(lastbakdeployRootWar):
             print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
             copyFile(deployRootWar, bakdeployRootWar)
         else:
             # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
             if not getTimeStamp(deployRootWar) == getTimeStamp(lastbakdeployRootWar):
-                print "back %s >>> 11%s" % (deployRootWar, bakdeployRootWar)
+
+                print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
                 copyFile(deployRootWar, bakdeployRootWar)
                 if os.path.exists(bakdeployRootWar):
                     print "back %s sucess" % bakdeployRootWar
                 else:
                     print "back %s fail" % deployRootWar
             else:
-                print "File is not mod,not need back"
+
+                print "File is not modify,not need back"
     else:
         print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
+
+def backWarMain(serverNAME):
+
+    serverNameList = readConf(serverConfPath)
+    if serverNAME:
+       backWar(serverNAME)
+    else:
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                backWar(serverName)
 
 def rollBack(versionId, serverName):
     versionList = getVersion(serverName)
@@ -533,8 +549,8 @@ def rollBack(versionId, serverName):
             else:
                 if os.path.exists(deployWarPathRoot):
                     shutil.rmtree(deployWarPathRoot)
-            unzipWar(deployRootWar, deployWarPathRoot)
-            startMain(serverName)
+            #unzipWar(deployRootWar, deployWarPathRoot)
+            #startMain(serverName)
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
 
@@ -668,9 +684,7 @@ def Main(Tag,serverNAME=""):
     elif Tag == "rollback":
         rollBackMain(serverNAME)
     elif Tag == "back":
-        pass
-        # backWar("upload")
-        # backWar("b2b-trade-api")
+        backWarMain(serverNAME)
     else:
         print """Follow One or Two agrs,
                        install|uninstall|reinstall:
