@@ -637,8 +637,6 @@ def updateMain(serverName):
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
                 updatePy(serverName)
-
-
 def md5File(file):
     import hashlib
     md5 = hashlib.md5()
