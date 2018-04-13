@@ -101,7 +101,7 @@ def changDir(dirpath):
 def execCmd(cmd):
     p = Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = p.communicate()
-    print 'Exec CMD :%s' %cmd
+    print 'Exec CMD :%s' % cmd
     return stdout, stderr
 
 # 注册或注销服务
@@ -187,7 +187,6 @@ def stopMain(serverName=""):
 
 def startServer(servername):
     # 启动服务
-
     for serverNameDict in serverNameList:
         for serverName, Dict in serverNameDict.iteritems():
             if serverName == "conf":
@@ -210,10 +209,17 @@ def startServerPy(servername):
         deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, servername)
         deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, servername)
         jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
+        # 考虑到现在生产环境的情况，tomcat 下的 工程下 会自动解war包，在不变更部署工程的情况下，将发布war与启动函数合并
+        updateMain(servername)
         if os.path.exists(deployWarPathRoot):
+             print "clean %s " % deployWarPathRoot
              shutil.rmtree(deployWarPathRoot)
         call_bat = 'net start %s' % servername
-        execCmd(call_bat)
+        stdout, stderr = execCmd(call_bat)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
         time.sleep(checktime)
         for i in xrange(1,checktime):
             print "check server:%s Number:%s " % (servername, i)
@@ -603,7 +609,7 @@ def updatePy(serverName):
              if os.path.exists(deployWarPath):
                   os.remove(deployWarPath)
              if not os.path.exists(deployWarPath):
-                 print "clean history %s sucess" % deployWarPath
+                 print "clean history war  %s sucess" % deployWarPath
                  if os.path.exists(jenkinsUploadDirWar):
                      copyFile(jenkinsUploadDirWar,deployWarPath)
                      if os.path.exists(deployWarPath):
@@ -613,7 +619,7 @@ def updatePy(serverName):
                  else:
                      print "file:%s  is not exists" % jenkinsUploadDirWar
              else:
-                 print "clean history %s fail" % deployWarPath
+                 print "clean history war  %s fail" % deployWarPath
 
 def updateMain(serverName):
     # 更新版本 服务 只是将war包复制到工程目录并 重命名

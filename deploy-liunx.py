@@ -76,40 +76,45 @@ def copyFile(sourfile,disfile):
 # 上传分发 方法 前提是设置好目标服务器无密码登录
 def sendWarToNode(serverName):
     warName = readConf(serverConfPath, serverName)[serverName]["war"]
-
     try :
         # 重组ｉｐ　列表
         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
     except:
         print "Check Config File"
         sys.exit()
-    loaclPath = os.path.join(jenkinsUploadDir, serverName,warName)
-    remotePath = os.path.join(jenkinsUploadDir, serverName)
-    if not os.path.exists(remotePath):
-        os.mkdir(remotePath)
-#    cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
-    if not os.path.exists(loaclPath):
-        print " File:%s is not exits" % loaclPath
-        sys.exit()
-    for ip in ipList:
-        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
-        stdout, stderr = execSh(cmd)
-        if stderr:
-            print stderr
-            print "check local path,or remote path!"
-            continue
-            #sys.exit(1)
-        # time.sleep(30)
+    if not ipList:
+        print "%s no need send serverIP" %serverName
+    else:
+        loaclPath = os.path.join(jenkinsUploadDir, serverName,warName)
+        remotePath = os.path.join(jenkinsUploadDir, serverName)
+        if not os.path.exists(remotePath):
+            os.mkdir(remotePath)
+#        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+        if not os.path.exists(loaclPath):
+            print " File:%s is not exits" % loaclPath
+            sys.exit()
+        for ip in ipList:
+            cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+            stdout, stderr = execSh(cmd)
+            if stderr:
+                print stderr
+                print "check local path,or remote path!"
+                continue
+                #sys.exit(1)
+            # time.sleep(30)
 
 def sendWarToNodeMain(serverName):
-    ser_list = readConf(serverConf)
+    #ser_list = readConf(serverConf)
+    #serverNameList
     #print ser_list
     if serverName:
         sendWarToNode(serverName)
     else:
-        for dict in ser_list:
+        for dict in serverNameList:
             for serName, portDict in dict.iteritems():
-                print serName
+                #print serName
+                if serName == "conf":
+                    continue
                 sendWarToNode(serName)
 
 def getPid(servername):
