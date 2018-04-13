@@ -271,7 +271,6 @@ def readConf(confPath,serverNAME=""):
         return serverNameDict
     else:
         for serverName in cf.sections():
-            #print 'serverName:%s' % serverName
             for optins in cf.options(serverName):
                 # 取服务名下的对应的配置和参数
                 port = cf.get(serverName, optins)
@@ -492,7 +491,6 @@ def backWar(serverName):
     #bakdeployRootWar = joinPathName(deploymentDir, "%s%s", "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName,tomcatPrefix, serverName, time.strftime("%Y-%m-%d-"), versionId)
     bakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%sV%s.war") % (tomcatPrefix,serverName, time.strftime("%Y-%m-%d-"), versionId)
     lastbakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName,lastVersinId)
-    print lastbakdeployRootWar
     if not os.path.exists(bakdeployRoot):
         os.mkdir(bakdeployRoot)
     if os.path.exists(deployRootWar):
@@ -508,9 +506,10 @@ def backWar(serverName):
                 else:
                     print "back %s fail" % deployRootWar
             else:
-                print "File is not modify"
+                print "File is not modify not need back"
     else:
-        print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
+        print "File %s is not exists" % (deployRootWar)
+        print "Back %s fail" % (deployRootWar)
 
 def backWarMain(serverNAME):
     if serverNAME:
@@ -552,15 +551,6 @@ def rollBack(versionId, serverName):
 
 def rollBackMain(serverNAME):
     # 默认回滚发布前上一个版本
-    if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s " % serverConfPath
-        print """ %s like this:
-                           [servername]
-                           http_port = 8810
-                           ajp_port = 8820
-                           shutdown_port = 8830
-                           war = com.hxh.xhw.upload.war""" % serverConf
-        sys.exit()
     if serverNAME:
         lastVersinId = getVersion(serverNAME)[-1]
         rollBack(lastVersinId, serverNAME)
@@ -609,7 +599,6 @@ def updatePy(serverName):
         deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
         jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
         if os.path.exists(jenkinsUploadDirWar):
-
              backWar(serverName)
              if os.path.exists(deployWarPath):
                   os.remove(deployWarPath)
@@ -676,8 +665,9 @@ def Main(Tag,serverName=""):
         #startMain(serverName)
     elif Tag in ["install", "uninstall", "reinstall"]:  # 部署tomcat 环境
         deploy(Tag, serverName)
-    # elif Tag == "send":  # 分发方法
-    #     sendWarToNodeMain(serverName)
+    elif Tag == "send":  # 分发方法
+        print "is not work"
+        #sendWarToNodeMain(serverName)
     elif Tag == "rollback":
         rollBackMain(serverName)
     elif Tag == "back":
@@ -686,30 +676,13 @@ def Main(Tag,serverName=""):
         print """Follow One or Two agrs,
                            install|uninstall|reinstall:
                            update:
+                           back:
                            start|stop|restart:
                            send:
-                           rollback"""
+                           rollback:"""
 
 # 初始化读取配置文件配置部署目录和基础部署文件的设置
 def _init():
-    global deploymentDir, baseTomcat, tomcatPrefix, pyFile, bakWarDir, jenkinsUploadDir
-
-    serverConfList = readConf(serverConfPath)
-    _serverConf = serverConfList[0]
-    deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
-    tomcatPrefix = _serverConf["conf"]["tomcatprefix"]  # tomcat 前缀
-    baseTomcat = _serverConf["conf"]["basetomcat"]  # 基础 tomcat 路径
-    pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
-    bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
-    jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
-
-   # global deploymentDir,baseTomcat,tomcatPrefix, pyFile,bakWarDir, jenkinsUploadDir
-    if not os.path.exists(deploymentDir):
-        os.makedirs(deploymentDir)
-    if not os.path.exists(bakWarDir):
-        os.makedirs(bakWarDir)
-    if not os.path.exists(jenkinsUploadDir):
-        os.makedirs(jenkinsUploadDir)
     if not os.path.exists(serverConfPath):
         print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
@@ -721,11 +694,21 @@ def _init():
                    ip = 192.168.0.159,192.168.0.59""" % serverConf
         sys.exit()
     else:
-        global serverNameList
+        global deploymentDir, baseTomcat, tomcatPrefix, pyFile, bakWarDir, jenkinsUploadDir, serverNameList
         serverNameList = readConf(serverConfPath)
-
-    # serverConf = _serverConf["conf"]["serverConf"]
-    #return deploymentDir, baseDeploymentName, baseTomcat
+        _serverConf = serverNameList[0]
+        deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
+        tomcatPrefix = _serverConf["conf"]["tomcatprefix"]  # tomcat 前缀
+        baseTomcat = _serverConf["conf"]["basetomcat"]  # 基础 tomcat 路径
+        pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
+        bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
+        jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
+        if not os.path.exists(deploymentDir):
+            os.makedirs(deploymentDir)
+        if not os.path.exists(bakWarDir):
+            os.makedirs(bakWarDir)
+        if not os.path.exists(jenkinsUploadDir):
+            os.makedirs(jenkinsUploadDir)
 
 def list_dir(path):
     list = os.listdir(path)
@@ -786,22 +769,4 @@ if __name__ == "__main__":
                rollback [serverName] [remote]"""
         sys.exit(1)
 
-    # deploymentDir, baseDeploymentName, baseTomcat = _init()
-    # if len(sys.argv) == 2:
-    #     tag = sys.argv[1]
-    #     if tag in ["install", "uninstall", "reinstall"]:
-    #         deploy(tag)
-    #     else:
-    #         print " only install,uninstall,reinstall"
-    # elif len(sys.argv) == 3:
-    #     tag = sys.argv[1]
-    #     serverName = sys.argv[2]
-    #     if tag in ["install", "uninstall", "reinstall"]:
-    #         deploy(tag, serverName)
-    #     else:
-    #         print " only install,uninstall,reinstall"
-    # else:
-    #     print "Follow One agrs,install|uninstall|reinstall"
-    #     print "Follow Two agrs,ServerNAME install|uninstall|reinstall"
-    #     sys.exit()
-    #
+
