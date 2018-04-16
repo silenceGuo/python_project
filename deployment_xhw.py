@@ -8,7 +8,10 @@ import shutil
 import os
 import sys
 import time
-
+"""
+用于ｗｉｎｄｏｗｓ环境下ｔｏｍｃａｔ的自动部署的工具脚本实现　部署、发布，启动，停止，回滚
+适用于ｔｏｍｃａｔ并注册为ｗｉｎｄｏｗｓ服务
+"""
 reload(sys)
 sys.setdefaultencoding('utf-8')
 #from xml.dom.minidom import parse
@@ -239,7 +242,7 @@ def startServerPy(servername):
                 cleanCachUpload(deployWarPathRoot)
                 updateMain(servername)
                 unzipWar(deployWarPath,deployWarPathRoot)
-                time.sleep(5)
+                time.sleep(checktime)
                 call_bat = 'net start %s' % servername
                 stdout, stderr = execCmd(call_bat)
                 if stdout:
@@ -257,7 +260,6 @@ def startServerPy(servername):
                     print "start server:%s fail" % servername
                 else:
                     print "start %s sucess" % servername
-
             else:
                 updateMain(servername)
                 if os.path.exists(deployWarPathRoot):
@@ -294,7 +296,6 @@ def startMain(serverName=""):
                 if serverName == "conf":
                     # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
                     continue
-                #startServer(serverName)
                 startServerPy(serverName)
 
 def writeLog(log_file,loginfo):
