@@ -15,7 +15,6 @@ sys.setdefaultencoding('utf-8')
 import xml.dom.minidom
 import codecs
 import ConfigParser
-import paramiko
 from subprocess import PIPE,Popen
 
 # 默认部署工程目录，默认是webapps
@@ -185,6 +184,26 @@ def stopMain(serverName=""):
                     continue
                 stopServer(serverName)
 
+def cleanCachUpload(path):
+    # 针对 upload 服务清除缓存，因为 上传的图片是软连接到其他目录的
+    list = ["WEB-INF","META-INF","css","images","js","upload","index.jsp","crossdomain.xml","clientaccesspolicy.xml"]
+    for i in list:
+        f = os.path.join(path,i)
+        if os.path.exists(f):
+            print "Clean %s" %f
+            if os.path.isfile(f):
+                # 删除文件
+                os.remove(f)
+            # 删除目录
+            else:
+                shutil.rmtree(f)
+def unzipWar(zipfilePath,unzipfilepath):
+    import zipfile
+    f = zipfile.ZipFile(zipfilePath, 'r')
+    print 'unzip file:%s >>>>>>to:%s' % (zipfilePath, unzipfilepath)
+    for file in f.namelist():
+        f.extract(file, unzipfilepath)
+
 def startServer(servername):
     # 启动服务
     for serverNameDict in serverNameList:
@@ -214,27 +233,53 @@ def startServerPy(servername):
         # 修改为<Host appBase="webapps" autoDeploy="false" name="localhost" unpackWARs="true">
         # 在不变更部署工程的情况下，将发布war与启动函数合并
         if not getPid(servername):
-            updateMain(servername)
-            if os.path.exists(deployWarPathRoot):
-                 print "clean %s " % deployWarPathRoot
-                 shutil.rmtree(deployWarPathRoot)
-            call_bat = 'net start %s' % servername
-            stdout, stderr = execCmd(call_bat)
-            if stdout:
-                print stdout
-            if stderr:
-                print stderr
-            time.sleep(checktime)
-            for i in xrange(1,checktime):
-                print "check server:%s Number:%s " % (servername, i)
+            if servername == "upload":
+                # 待需要代码优化，此处是针对upload 服务的 上传的图片 做特殊处理，
+                # 对部署ROOT 下的资源图片不删除，通过手动解压war包
+                cleanCachUpload(deployWarPathRoot)
+                updateMain(servername)
+                unzipWar(deployWarPath,deployWarPathRoot)
+                time.sleep(5)
+                call_bat = 'net start %s' % servername
+                stdout, stderr = execCmd(call_bat)
+                if stdout:
+                    print stdout
+                if stderr:
+                    print stderr
                 time.sleep(checktime)
-                if getPid(servername):
+                for i in xrange(1, checktime):
+                    print "check server:%s Number:%s " % (servername, i)
+                    time.sleep(checktime)
+                    if getPid(servername):
                         print "start %s sucess" % servername
                         break
-            if not getPid(servername):
-                print "start server:%s fail" % servername
+                if not getPid(servername):
+                    print "start server:%s fail" % servername
+                else:
+                    print "start %s sucess" % servername
+
             else:
-                print "start %s sucess" % servername
+                updateMain(servername)
+                if os.path.exists(deployWarPathRoot):
+                     print "clean %s " % deployWarPathRoot
+                     shutil.rmtree(deployWarPathRoot)
+                call_bat = 'net start %s' % servername
+                stdout, stderr = execCmd(call_bat)
+                if stdout:
+                    print stdout
+                if stderr:
+                    print stderr
+                time.sleep(checktime)
+                for i in xrange(1,checktime):
+                    print "check server:%s Number:%s " % (servername, i)
+                    time.sleep(checktime)
+                    if getPid(servername):
+                            print "start %s sucess" % servername
+                            break
+                if not getPid(servername):
+                    print "start server:%s fail" % servername
+                else:
+                    print "start %s sucess" % servername
         else:
             print "server: %s is started" % servername
     else:
@@ -365,6 +410,7 @@ def deploy(Tag,serverNAME=""):
             deployForServer(Tag,serverName,portDict)
 
 def sshCmd(Tag, ip, serverName):
+    import paramiko
     try:
         cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本 和传入参数
         ssh = paramiko.SSHClient()
