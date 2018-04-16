@@ -43,7 +43,6 @@ def _init():
         os.makedirs(deploymentDir)
     if not os.path.exists(deploymentAppSerDir):
         os.makedirs(deploymentAppSerDir)
-
     if not os.path.exists(serverConfPath):
         print "serverconf is not exists,check serverconf %s "% serverConfPath
         print """ %s like this:
@@ -585,7 +584,7 @@ def conn(ip, username, passwd):
 
 def sshCmd(Tag, ip, serverName):
     try:
-        cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本 和传入参数
+        cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本和传入参数
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         pkey_file = '/root/.ssh/id_rsa'
@@ -614,19 +613,18 @@ def sshCmdMain(Tag, serverName):
         for ip in ipList:
             sshCmd(Tag, ip, serverName)
     else:
-       #serverNameList = readConf(serverConfPath)
-       for serverNameDict in serverNameList:
-           for serverName, portDict in serverNameDict.iteritems():
-               if serverName == "conf":
-                   # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
-                   continue
-               try:
-                   ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
-               except:
-                   print "Check Config File"
-                   sys.exit()
-               for ip in ipList:
-                   sshCmd(Tag, ip, serverName)
+        for serverNameDict in serverNameList:
+            for serverName, portDict in serverNameDict.iteritems():
+                if serverName == "conf":
+                    # 如果是conf 的就略过，下一个服务，conf 是做为配置文件的配置
+                    continue
+                try:
+                    ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+                except:
+                    print "Check Config File"
+                    sys.exit()
+                for ip in ipList:
+                    sshCmd(Tag, ip, serverName)
 
 def Main(Tag,serverNAME=""):
     _init()
@@ -675,7 +673,7 @@ if __name__ == "__main__":
         serName = sys.argv[2]
         if not Tag in ["install", "uninstall", "reinstall"]:
            if not checkServer(serName):
-               print "serverName is worry,please check"
+               print "serverName is Eorr,please check,server:% is not install" %serName
                sys.exit(1)
         Main(Tag, serName)
     elif len(sys.argv) == 4:
@@ -683,7 +681,7 @@ if __name__ == "__main__":
         serName = sys.argv[2]
         remote = sys.argv[3]
         if remote == "remote":
-            sshCmdMain(Tag, serName)  # 执行远程 调用脚本的
+            sshCmdMain(Tag, serName)  # 执行远程调用脚本的
         else:
             print """Follow Agrs,
                            install|uninstall|reinstall:
