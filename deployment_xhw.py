@@ -209,28 +209,34 @@ def startServerPy(servername):
         deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, servername)
         deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, servername)
         jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
-        # 考虑到现在生产环境的情况，tomcat 下的 工程下 会自动解war包，在不变更部署工程的情况下，将发布war与启动函数合并
-        updateMain(servername)
-        if os.path.exists(deployWarPathRoot):
-             print "clean %s " % deployWarPathRoot
-             shutil.rmtree(deployWarPathRoot)
-        call_bat = 'net start %s' % servername
-        stdout, stderr = execCmd(call_bat)
-        if stdout:
-            print stdout
-        if stderr:
-            print stderr
-        time.sleep(checktime)
-        for i in xrange(1,checktime):
-            print "check server:%s Number:%s " % (servername, i)
-            time.sleep(checktime)
-            if getPid(servername):
-                    print "start %s sucess" % servername
-                    break
+        # 考虑到现在生产环境的情况，tomcat 下的 工程下会自动解war包，该问题是需要重新部署ｔｏｍｃａｔ　修改server.xml
+        # <Host appBase="webapps" autoDeploy="true" name="localhost" unpackWARs="true">
+        # 修改为<Host appBase="webapps" autoDeploy="false" name="localhost" unpackWARs="true">
+        # 在不变更部署工程的情况下，将发布war与启动函数合并
         if not getPid(servername):
-            print "start server:%s fail" % servername
+            updateMain(servername)
+            if os.path.exists(deployWarPathRoot):
+                 print "clean %s " % deployWarPathRoot
+                 shutil.rmtree(deployWarPathRoot)
+            call_bat = 'net start %s' % servername
+            stdout, stderr = execCmd(call_bat)
+            if stdout:
+                print stdout
+            if stderr:
+                print stderr
+            time.sleep(checktime)
+            for i in xrange(1,checktime):
+                print "check server:%s Number:%s " % (servername, i)
+                time.sleep(checktime)
+                if getPid(servername):
+                        print "start %s sucess" % servername
+                        break
+            if not getPid(servername):
+                print "start server:%s fail" % servername
+            else:
+                print "start %s sucess" % servername
         else:
-            print "start %s sucess" % servername
+            print "server: %s is started" % servername
     else:
         print "server name is err :%s" %servername
 
