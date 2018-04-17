@@ -31,7 +31,7 @@ baseTomcat = "/home/tomcat7-/"
 tomcatPrefix = "tomcat7-"
 pyFile ="/home/scripts/deploy-liunx.py" # 指远程服务器执行py脚本路径
 checktime = 5  # 等待时间 和检查状态次数
-keepBakNum = 3  # 备份war包保留版本数
+keepBakNum = 2  # 备份war包保留版本数
 
 # 取当前脚步的绝对路径，并拼装配置文件路径
 dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
@@ -171,6 +171,7 @@ def update(serverName):
     if os.path.exists(deployWarPath):
         #backWar(serverName)
         backWarMain(serverName)
+
     if os.path.exists(jenkinsUploadDirWar):
         copyFile(jenkinsUploadDirWar, deployWarPath)
     else:
@@ -476,7 +477,6 @@ def cleanHistoryBak(serverName):
         cleanVersionList = VersinIdList[0:len(VersinIdList) - keepBakNum]
         for i in cleanVersionList:
             bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") %i
-            print bakWarPath
             if os.path.exists(bakWarPath):
                 print "clean history back WAR %s" % bakWarPath
                 os.remove(bakWarPath)
@@ -485,7 +485,7 @@ def cleanHistoryBak(serverName):
 
 def backWar(serverName):
     # 部署的war包
-    deployRootWar = joinPathName(deploymentDir, tomcatPrefix,serverName, "webapps","ROOT.war") #% (tomcatPrefix,serverName)
+    deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
     # 备份war包路径
     bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (tomcatPrefix,serverName,tomcatPrefix, serverName)
     versionId = getBackVersionId(serverName)  # 同一日期下的最新版本
@@ -504,28 +504,25 @@ def backWar(serverName):
     if not os.path.exists(bakdeployRoot):
         os.mkdir(bakdeployRoot)
     if os.path.exists(deployRootWar):
-
         if not os.path.exists(lastbakdeployRootWar):
             print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
             copyFile(deployRootWar, bakdeployRootWar)
         else:
             # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
             if not getTimeStamp(deployRootWar) == getTimeStamp(lastbakdeployRootWar):
-
                 print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
                 copyFile(deployRootWar, bakdeployRootWar)
+                cleanHistoryBak(serverName)
                 if os.path.exists(bakdeployRootWar):
                     print "back %s sucess" % bakdeployRootWar
                 else:
                     print "back %s fail" % deployRootWar
             else:
-
                 print "File is not modify,not need back"
     else:
         print "file %s or %s is not exists" % (deployRootWar,bakdeployRootWar)
 
 def backWarMain(serverNAME):
-
     # serverNameList = readConf(serverConfPath)
     if serverNAME:
        backWar(serverNAME)
@@ -671,47 +668,45 @@ def Main(Tag,serverNAME=""):
                        rollback"""
 
 if __name__ == "__main__":
-    cleanHistoryBak("upload")
-
-    # try:
-    #     Tag = sys.argv[1]
-    # except:
-    #     print """Follow Agrs,
-    #            install|uninstall|reinstall:
-    #            update:
-    #            start|stop|restart:
-    #            send:
-    #            rollback:[serverName] [remote]"""
-    #     sys.exit(1)
-    # if len(sys.argv) == 2:
-    #     Tag = sys.argv[1]
-    #     Main(Tag)
-    # elif len(sys.argv) == 3:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     if not Tag in ["install", "uninstall", "reinstall"]:
-    #        if not checkServer(serName):
-    #            print "serverName is Eorr,please check,server:% is not install" %serName
-    #            sys.exit(1)
-    #     Main(Tag, serName)
-    # elif len(sys.argv) == 4:
-    #     Tag = sys.argv[1]
-    #     serName = sys.argv[2]
-    #     remote = sys.argv[3]
-    #     if remote == "remote":
-    #         sshCmdMain(Tag, serName)  # 执行远程调用脚本的
-    #     else:
-    #         print """Follow Agrs,
-    #                        install|uninstall|reinstall:
-    #                        update:
-    #                        start|stop|restart:
-    #                        send:
-    #                        rollback [serverName] [remote]"""
-    # else:
-    #     print """Follow Agrs,
-    #            install|uninstall|reinstall:
-    #            update:
-    #            start|stop|restart:
-    #            send:
-    #            rollback [serverName] [remote]"""
-    #     sys.exit(1)
+    try:
+        Tag = sys.argv[1]
+    except:
+        print """Follow Agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback:[serverName] [remote]"""
+        sys.exit(1)
+    if len(sys.argv) == 2:
+        Tag = sys.argv[1]
+        Main(Tag)
+    elif len(sys.argv) == 3:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        if not Tag in ["install", "uninstall", "reinstall"]:
+           if not checkServer(serName):
+               print "serverName is Eorr,please check,server:% is not install" %serName
+               sys.exit(1)
+        Main(Tag, serName)
+    elif len(sys.argv) == 4:
+        Tag = sys.argv[1]
+        serName = sys.argv[2]
+        remote = sys.argv[3]
+        if remote == "remote":
+            sshCmdMain(Tag, serName)  # 执行远程调用脚本的
+        else:
+            print """Follow Agrs,
+                           install|uninstall|reinstall:
+                           update:
+                           start|stop|restart:
+                           send:
+                           rollback [serverName] [remote]"""
+    else:
+        print """Follow Agrs,
+               install|uninstall|reinstall:
+               update:
+               start|stop|restart:
+               send:
+               rollback [serverName] [remote]"""
+        sys.exit(1)

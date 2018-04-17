@@ -748,7 +748,6 @@ def Main(Tag,serverName=""):
         rollBackMain(serverName)
     elif Tag == "back":
         backWarMain(serverName)
-        cleanHistoryBak(serverName)
     else:
         print """Follow One or Two agrs,
                            install|uninstall|reinstall:
