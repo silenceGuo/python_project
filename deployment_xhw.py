@@ -28,7 +28,7 @@ serverConf = "server.conf"
 dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
 serverConfPath = os.path.join(dirname, serverConf)
 # 检查时间
-checktime = 5
+# checktime = 5
 # 返回部署工程的目标目录
 def deploymentTomcatName(serverName):
     return os.path.join(deploymentDir, "%s%s") % (tomcatPrefix, serverName)
@@ -536,6 +536,22 @@ def getBackVersionId(serverName):
         else:
             return int(versionIdList[-1].split("-")[-1].split("V")[-1]) + int(1)
 
+def cleanHistoryBak(serverName):
+    # 清除历史备份war包
+    bakdeployRoot = joinPathName(bakWarDir, "bak-%s%s") % (tomcatPrefix, serverName)
+    VersinIdList = getVersion(serverName)
+    if VersinIdList:
+        cleanVersionList = VersinIdList[0:len(VersinIdList) - int(keepBakNum)]
+        for i in cleanVersionList:
+            bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") %i
+            #print bakWarPath
+            if os.path.exists(bakWarPath):
+                print "clean history back WAR: %s" % bakWarPath
+                os.remove(bakWarPath)
+                #shutil.rmtree(bakWarPath)
+    else:
+        print "%s is not bak War" % serverName
+
 def backWar(serverName):
     # 部署的war包
     deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps","ROOT.war") % (tomcatPrefix,serverName)
@@ -562,6 +578,7 @@ def backWar(serverName):
                 copyFile(deployRootWar, bakdeployRootWar)
                 if os.path.exists(bakdeployRootWar):
                     print "back %s sucess" % bakdeployRootWar
+                    cleanHistoryBak(serverName)
                 else:
                     print "back %s fail" % deployRootWar
             else:
@@ -731,6 +748,7 @@ def Main(Tag,serverName=""):
         rollBackMain(serverName)
     elif Tag == "back":
         backWarMain(serverName)
+        cleanHistoryBak(serverName)
     else:
         print """Follow One or Two agrs,
                            install|uninstall|reinstall:
@@ -753,7 +771,8 @@ def _init():
                    ip = 192.168.0.159,192.168.0.59""" % serverConf
         sys.exit()
     else:
-        global deploymentDir, baseTomcat, tomcatPrefix, pyFile, bakWarDir, jenkinsUploadDir, serverNameList
+        global deploymentDir, baseTomcat, tomcatPrefix, pyFile, \
+               bakWarDir, jenkinsUploadDir, serverNameList,checktime,keepBakNum
         serverNameList = readConf(serverConfPath)
         _serverConf = serverNameList[0]
         deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
@@ -762,6 +781,8 @@ def _init():
         pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
         bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
         jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
+        checktime = _serverConf["conf"]["checktime"]  # 等待时间 和检查状态次数
+        keepBakNum = _serverConf["conf"]["keepbaknum"]  # 备份war包保留版本数
         if not os.path.exists(deploymentDir):
             os.makedirs(deploymentDir)
         if not os.path.exists(bakWarDir):
@@ -780,6 +801,7 @@ def list_dir(path):
     return ser_dict
 
 if __name__ == "__main__":
+
 
     # 读取配置文件信息
     try:
