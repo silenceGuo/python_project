@@ -164,14 +164,16 @@ def stopMain(serverName):
 
 # 发布服务
 def update(serverName):
-    war = readConf(serverConfPath,serverName)[serverName]["war"]
+    try:
+        war = readConf(serverConfPath,serverName)[serverName]["war"]
+    except:
+        print "war = xxx.war"
     deployWarPath = joinPathName(deploymentDir, "%s%s/webapps/ROOT.war") % (tomcatPrefix, serverName)
     deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
     jenkinsUploadDirWar = joinPathName(jenkinsUploadDir,"%s","%s") % (serverName, war)
     if os.path.exists(deployWarPath):
         #backWar(serverName)
         backWarMain(serverName)
-
     if os.path.exists(jenkinsUploadDirWar):
         copyFile(jenkinsUploadDirWar, deployWarPath)
     else:

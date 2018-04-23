@@ -241,7 +241,7 @@ def startServerPy(servername):
                 # 对部署ROOT 下的资源图片不删除，通过手动解压war包
                 cleanCachUpload(deployWarPathRoot)
                 updateMain(servername)
-                unzipWar(deployWarPath,deployWarPathRoot)
+                unzipWar(deployWarPath, deployWarPathRoot)
                 time.sleep(checktime)
                 call_bat = 'net start %s' % servername
                 stdout, stderr = execCmd(call_bat)
@@ -735,6 +735,7 @@ def Main(Tag,serverName=""):
         startMain(serverName)
     elif Tag == "restart":  # 重启服务
         stopMain(serverName)
+        #updateMain(serverName)
         startMain(serverName)
     elif Tag == "update":  # 更新发布新版本
         updateMain(serverName)
@@ -780,8 +781,8 @@ def _init():
         pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
         bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
         jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
-        checktime = _serverConf["conf"]["checktime"]  # 等待时间 和检查状态次数
-        keepBakNum = _serverConf["conf"]["keepbaknum"]  # 备份war包保留版本数
+        checktime = int(_serverConf["conf"]["checktime"])  # 等待时间 和检查状态次数
+        keepBakNum = int(_serverConf["conf"]["keepbaknum"])  # 备份war包保留版本数
         if not os.path.exists(deploymentDir):
             os.makedirs(deploymentDir)
         if not os.path.exists(bakWarDir):
