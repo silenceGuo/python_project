@@ -332,6 +332,8 @@ def readConf(confPath,serverNAME=""):
             print "serverName:%s server is not exists" %serverNAME
             sys.exit(1)
         for optins in cf.options(serverNAME):
+            if not confCheck(cf,serverName,optins):
+                sys.exit()
             port = cf.get(serverNAME, optins)
             portDict[optins] = port
         serverNameDict[serverNAME] = portDict
@@ -341,6 +343,8 @@ def readConf(confPath,serverNAME=""):
             #print 'serverName:%s' % serverName
             for optins in cf.options(serverName):
                 # 取服务名下的对应的配置和参数
+                if not confCheck(cf, serverName, optins):
+                    sys.exit()
                 port = cf.get(serverName, optins)
                 portDict[optins] = port
             serverNameDict[serverName] = portDict
@@ -350,6 +354,21 @@ def readConf(confPath,serverNAME=""):
             serverNameDict ={}
         return serverNameList
 
+#
+def confCheck(cf, section, option):
+    if not cf.options(section):
+        print "no section: %s in conf file" % section
+        sys.exit()
+    try:
+        options = cf.get(section, option)
+    except ConfigParser.NoOptionError:
+        print "no option in conf %s " % option
+        sys.exit()
+    if not options:
+        print "options:(%s) is null in section:(%s)" % (option, section)
+        return False
+    else:
+        return True
 # 检查工程是否部署
 def checkServer(serverName):
     serverNameDeployPath = os.path.join(deploymentAppSerDir,"%s%s") % (tomcatPrefix, serverName)

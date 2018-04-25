@@ -323,6 +323,8 @@ def readConf(confPath,serverNAME=""):
             print "serverName:%s server is not exists" %serverNAME
             sys.exit(1)
         for optins in cf.options(serverNAME):
+            if not confCheck(cf,serverNAME,optins):
+                sys.exit()
             port = cf.get(serverNAME, optins)
             portDict[optins] = port
         serverNameDict[serverNAME] = portDict
@@ -331,16 +333,31 @@ def readConf(confPath,serverNAME=""):
         for serverName in cf.sections():
             for optins in cf.options(serverName):
                 # 取服务名下的对应的配置和参数
+                if not confCheck(cf, serverName, optins):
+                    sys.exit()
                 port = cf.get(serverName, optins)
                 portDict[optins] = port
             serverNameDict[serverName] = portDict
             serverNameList.append(serverNameDict)
-            #print serverNameDict
             portDict={}
             serverNameDict ={}
         return serverNameList
 
-    # 部署针对单个服务的操作 ，且配置文件中存在
+# 检查配置文件
+def confCheck(cf,section,option):
+    if not cf.options(section):
+        print "no section: %s in conf file" % section
+        sys.exit()
+    try:
+        options = cf.get(section, option)
+    except ConfigParser.NoOptionError:
+        print "no option in conf %s " % option
+        sys.exit()
+    if not options:
+        print "options:(%s) is null in section:(%s)" % (option,section)
+        return False
+    else:
+        return True
 
 #部署单函数 配置文件所有的服务部署
 def deployForServer(Tag, serverName, portDict):
@@ -775,14 +792,18 @@ def _init():
                bakWarDir, jenkinsUploadDir, serverNameList,checktime,keepBakNum
         serverNameList = readConf(serverConfPath)
         _serverConf = serverNameList[0]
-        deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
-        tomcatPrefix = _serverConf["conf"]["tomcatprefix"]  # tomcat 前缀
-        baseTomcat = _serverConf["conf"]["basetomcat"]  # 基础 tomcat 路径
-        pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
-        bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
-        jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
-        checktime = int(_serverConf["conf"]["checktime"])  # 等待时间 和检查状态次数
-        keepBakNum = int(_serverConf["conf"]["keepbaknum"])  # 备份war包保留版本数
+        try:
+             deploymentDir = _serverConf["conf"]["deploymentdir"]  # 工程部署目录
+             tomcatPrefix = _serverConf["conf"]["tomcatprefix"]  # tomcat 前缀
+             baseTomcat = _serverConf["conf"]["basetomcat"]  # 基础 tomcat 路径
+             pyFile = _serverConf["conf"]["pyfile"]  # 远程脚本路径
+             bakWarDir = _serverConf["conf"]["bakwardir"]  # 备份 war包路径
+             jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
+             checktime = int(_serverConf["conf"]["checktime"])  # 等待时间 和检查状态次数
+             keepBakNum = int(_serverConf["conf"]["keepbaknum"])  # 备份war包保留版本数
+        except KeyError, E:
+            print "conf is not %s" % E
+            sys.exit()
         if not os.path.exists(deploymentDir):
             os.makedirs(deploymentDir)
         if not os.path.exists(bakWarDir):
@@ -801,8 +822,9 @@ def list_dir(path):
     return ser_dict
 
 if __name__ == "__main__":
-
-
+    #serverConfPath
+    # _init()
+    # conf(serverConfPath,"conf","bakwardir")
     # 读取配置文件信息
     try:
         Tag = sys.argv[1]
