@@ -101,7 +101,7 @@ if __name__ == "__main__":
     #ser_dir = "D:\\programfiles\\application\\"
     #path = "D:\\logs\\xml13.tmp"
     info = ""
-    s= ""
+    s = ""
     for k, v in main(ser_dir).iteritems():
         #print k, v
         for i,j in v.iteritems():

@@ -16,7 +16,7 @@ def getPid(serverName):
         p = psutil.Process(pid)
         #print p.name()
         if p.name() == serverName:
-            print "Pid:%s,PidName:%s " % (pid,p.name())
+            print "Pid:%s,PidName:%s " % (pid, p.name())
             return pid
     print "Not Find Servername:%s" % serverName
     #return None
@@ -58,11 +58,73 @@ def UsePlatform():
   else:
     print ("Other System tasks")
 
+import time
+from functools import wraps
+
+def fn_timer(function):
+    @wraps(function)
+    def function_timer(*args, **kwargs):
+        t0 = time.time()
+        result = function(*args, **kwargs)
+        t1 = time.time()
+        print ("Total time running %s: %s seconds" %
+               (function.func_name, str(t1-t0))
+               )
+        return result
+    return function_timer
+
+@fn_timer
+def test():
+    a = 43.85
+    # a = 54.64
+    import itertools
+    import time
+    list1 = [28.77, 24.45, 15.08, 11.20, 11.82, 11.39, 8.91, 9.06, ]#12.57, 13.91,14.41, 14.20]
+    #list1 = [28.77,24.45,15.08,]
+    tot = 0
+    list2 = []
+    for i in xrange(1, len(list1) + 1):
+        iter = itertools.permutations(list1, i)
+        # print iter
+        list2.append(list(iter))
+        # print list(iter)
+        time.sleep(1)
+    #print  list2
+    for i in list2:
+        for j in i:
+            #print j
+            for t in j:
+                tot = tot +t
+            #print tot
+            if tot == a:
+                print j
+                sys.exit(1)
+            else:
+                pass
+            tot = 0
+
+import sys
+log_file = "D:\\tag.txt"
+loginfo = sys.argv[1]
+def writeLog(log_file, loginfo):
+    # 写日志函数
+    if not os.path.exists(log_file):
+        print log_file
+        with open(log_file, 'w+') as fd:
+            fd.write(loginfo)
+    else:
+        with open(log_file, 'w+')as fd:
+            fd.write(loginfo)
 if __name__ == "__main__":
+    # import multiprocessing
+    # for i in xrange(2):
+    #    p = multiprocessing.Process(target=test)  # 进程实现
+    # p.start()
+    writeLog(log_file, loginfo)
+   # # pid = getPid(serverName="cmd.exe")
+   #  pid = getPid(serverName="upload")
+   #  #kill(pid)
+   #  TestPlatform()
+   #  UsePlatform()
 
-    pid = getPid(serverName="cmd.exe")
-    #kill(pid)
-    TestPlatform()
 
-
-   # print p

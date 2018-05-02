@@ -133,7 +133,7 @@ def getPid(servername):
         try:
             #print [i.strip() for i in stdout.split('\n') if i.strip().split(":")][1:]
             pid = [i.strip() for i in stdout.split('\n') if i.strip()][8].split(":")[1].strip()
-           #pid = [i.strip() for i in stdout.split('\n') if i.strip().split(":")][8].split(":")[1].strip()
+            #pid = [i.strip() for i in stdout.split('\n') if i.strip().split(":")][8].split(":")[1].strip()
         except:
             print 'sc query fail %s is not exists' % servername
             return False
@@ -147,6 +147,7 @@ def getPid(servername):
 def checkServer(servername):
     # 检查服务是否注册
     cmd = "sc queryex %s" % servername
+    print "check servername:%s " % servername
     stdout, stderr = execCmd(cmd)
     if "EnumQueryServicesStatus:OpenService" in stdout.split(" "):
         return False
@@ -308,7 +309,7 @@ def writeLog(log_file,loginfo):
         with open(log_file, 'w+')as fd:
             fd.write(loginfo)
 
-#读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序 默认读取配置文件部署所有服务，
+# 读取配置文件和启动服务文件设置需要部署的服务以及设置服务顺序 默认读取配置文件部署所有服务，
 def readConf(confPath,serverNAME=""):
     cf = ConfigParser.ConfigParser()
     cf.read(confPath)
@@ -320,7 +321,7 @@ def readConf(confPath,serverNAME=""):
             cf.options(serverNAME)
         except Exception, e:
             print e
-            print "serverName:%s server is not exists" %serverNAME
+            print "serverName:%s server is not exists" % serverNAME
             sys.exit(1)
         for optins in cf.options(serverNAME):
             if not confCheck(cf,serverNAME,optins):
@@ -359,7 +360,7 @@ def confCheck(cf,section,option):
     else:
         return True
 
-#部署单函数 配置文件所有的服务部署
+# 部署单函数 配置文件所有的服务部署
 def deployForServer(Tag, serverName, portDict):
     shutdown_port = portDict["shutdown_port"]
     http_port = portDict["http_port"]
@@ -406,7 +407,7 @@ def deployForServer(Tag, serverName, portDict):
     else:
         pass
 
-#部署主函数 配置文件所有的服务部署
+# 部署主函数 配置文件所有的服务部署
 def deploy(Tag,serverNAME=""):
     # dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
     # serverConfPath = os.path.join(dirname, serverConf)
