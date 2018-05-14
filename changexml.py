@@ -5,15 +5,21 @@
 # @file   : changexml.py
 
 import xml.dom.minidom
+#import dom
 import os
 import sys
 import codecs
 # 读取xml 配置文件
-path = "D:\\logs\\SVN-maven"
+path = "D:\programfiles\\"
 changfile = "ehcache.xml"
 fileType = "ehcache.xml"
 changxmlname = "accessTokenCache"
 list = []
+changDict ={
+    "eternal":"false",
+    "timeToIdleSeconds":"3800",
+    "timeToLiveSeconds":"3800",
+    "overflowToDisk":"false"}
 def listDir(path):
     #list = []
     lsdir = os.listdir(path)
@@ -43,7 +49,7 @@ def readXml(serverName):
 
 # 修改xml 配置文件
 def changeXml(xmlpath,selection,attribute):
-    xmlpath ="D:\\logs\\SVN-maven\\ybdev\\activity-oss\\sys4.0\\ehcache.xml"
+    #xmlpath ="D:\programfiles\\ehcache.xml"
     #xmlpath = os.path.join(deploymentTomcatName(serverName), "conf/server.xml")
     print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
@@ -52,14 +58,14 @@ def changeXml(xmlpath,selection,attribute):
     #print collection
     caches = collection.getElementsByTagName("cache")
     for cache in caches:
-        if cache.hasAttribute("name") :
+        #if cache.hasAttribute("name") :
             if cache.getAttribute("name") == changxmlname:
-                print cache.getAttribute("name")
-                print cache.getAttribute("maxElementsInMemory")
-            #print cache.setAttribute("name","test")
-
-            #cache.
-    #print cache
+                print"修改的块名:" ,cache.getAttribute("name")
+                for k, v in changDict.iteritems():
+                    print"原属性值：",cache.getAttribute(k)
+                    print "修改属性:%s为值:%s" % (k,v)
+                    cache.setAttribute(k,v)
+                    #cache.rmAttribute(k,v)
     #collection.setAttribute("port", shutdown_port)  # shutdown port
     # URIEconding = "UTF-8"
     # useBodyEncodingForURI = "true"
@@ -74,9 +80,38 @@ def changeXml(xmlpath,selection,attribute):
     #     # connector[0].setAttribute("useBodyEncodingForURI", "true")  # http port
     #     #connector[1].setAttribute("port", ajp_port)  # ajp port
 
-    # outfile = file(xmlpath, 'w')
-    # write = codecs.lookup("utf-8")[3](outfile)
+    outfile = file(xmlpath, 'w')
+    write = codecs.lookup("utf-8")[3](outfile)
+    domtree.writexml(write, addindent=" ",newl=' ', encoding='utf-8')
     # domtree.writexml(write, addindent=" ", encoding='utf-8')
-    # write.close()
+    write.close()
+
+def Indent(dom, node, indent = 0):
+    # Copy child list because it will change soon
+    children = node.childNodes[:]
+    # Main node doesn’t need to be indented
+    if indent:
+        text = dom.createTextNode("/n" + "/t" * indent)
+        node.parentNode.insertBefore(text, node)
+    if children:
+        # Append newline after last child, except for text nodes
+        if children[-1].nodeType == node.ELEMENT_NODE:
+            text = dom.createTextNode("/n" + "/t" * indent)
+            node.appendChild(text)
+        # Indent children which are elements
+        for n in children:
+            if n.nodeType == node.ELEMENT_NODE:
+                Indent(dom, n, indent + 1)
+
 xmlpath,selection,attribute = "","",""
-changeXml(xmlpath,selection,attribute)
+for xmlfile in listDir(path):
+    print xmlfile
+    changeXml(xmlfile,selection,attribute)
+
+    # domtree = xml.dom.minidom.parse(xmlpath)
+    # domcopy=domtree.cloneNode(True )
+    # Indent(domcopy, domcopy.documentElement)
+    # f = file(xmlfile, "wb")
+    # writer = codecs.lookup("utf-8")[3](f)
+    # domcopy.writexml(writer, encoding="utf-8")
+    # domcopy.unlink()
