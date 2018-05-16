@@ -10,16 +10,18 @@ import os
 import sys
 import codecs
 # 读取xml 配置文件
-path = "D:\programfiles\\"
+path = "D:\logs\\"
 changfile = "ehcache.xml"
-fileType = "ehcache.xml"
+#fileType = "ehcache.xml"
 changxmlname = "accessTokenCache"
 list = []
-changDict ={
-    "eternal":"false",
-    "timeToIdleSeconds":"3800",
-    "timeToLiveSeconds":"3800",
-    "overflowToDisk":"false"}
+changDict = {
+    "eternal": "false",
+    "timeToIdleSeconds": "3800",
+    "timeToLiveSeconds": "3800",
+    "timeToLiveSeconds12": "4800",
+    "overflowToDisk": "false"}
+
 def listDir(path):
     #list = []
     lsdir = os.listdir(path)
@@ -48,9 +50,7 @@ def readXml(serverName):
     return {serverName: {"shutdown_port": shutdown_port, "http_port": http_port, "ajp_port": ajp_port}}
 
 # 修改xml 配置文件
-def changeXml(xmlpath,selection,attribute):
-    #xmlpath ="D:\programfiles\\ehcache.xml"
-    #xmlpath = os.path.join(deploymentTomcatName(serverName), "conf/server.xml")
+def changeXml(xmlpath,changxmlname,):
     print xmlpath
     domtree = xml.dom.minidom.parse(xmlpath)
     #print domtree
@@ -60,12 +60,14 @@ def changeXml(xmlpath,selection,attribute):
     for cache in caches:
         #if cache.hasAttribute("name") :
             if cache.getAttribute("name") == changxmlname:
-                print"修改的块名:" ,cache.getAttribute("name")
+                print"修改的块名:", cache.getAttribute("name")
                 for k, v in changDict.iteritems():
-                    print"原属性值：",cache.getAttribute(k)
-                    print "修改属性:%s为值:%s" % (k,v)
-                    cache.setAttribute(k,v)
-                    #cache.rmAttribute(k,v)
+                    if cache.hasAttribute(k):
+                        print"原属性值：", cache.getAttribute(k)
+                        print "修改属性:%s为值:%s" % (k,v)
+                        cache.setAttribute(k,v)
+                    else:
+                        print "not attribute: %s" % k
     #collection.setAttribute("port", shutdown_port)  # shutdown port
     # URIEconding = "UTF-8"
     # useBodyEncodingForURI = "true"
@@ -82,8 +84,8 @@ def changeXml(xmlpath,selection,attribute):
 
     outfile = file(xmlpath, 'w')
     write = codecs.lookup("utf-8")[3](outfile)
-    domtree.writexml(write, addindent=" ",newl=' ', encoding='utf-8')
-    # domtree.writexml(write, addindent=" ", encoding='utf-8')
+    # domtree.writexml(write, addindent=" ",newl=' ', encoding='utf-8')
+    domtree.writexml(write, addindent=" ", encoding='utf-8')
     write.close()
 
 def Indent(dom, node, indent = 0):
@@ -103,10 +105,9 @@ def Indent(dom, node, indent = 0):
             if n.nodeType == node.ELEMENT_NODE:
                 Indent(dom, n, indent + 1)
 
-xmlpath,selection,attribute = "","",""
+
 for xmlfile in listDir(path):
-    print xmlfile
-    changeXml(xmlfile,selection,attribute)
+    changeXml(xmlfile,changxmlname)
 
     # domtree = xml.dom.minidom.parse(xmlpath)
     # domcopy=domtree.cloneNode(True )
