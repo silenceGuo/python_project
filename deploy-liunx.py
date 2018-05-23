@@ -88,7 +88,7 @@ def sendWarToNode(serverName):
         print "%s no need send serverIP" % serverName
     else:
         loaclPath = os.path.join(jenkinsUploadDir, serverName, warName)
-        remotePath = os.path.join(jenkinsUploadDir, serverName)
+        remotePath = os.path.join(jenkinsUploadDir, serverName, warName)
         if not os.path.exists(remotePath):
             os.mkdir(remotePath)
 #        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
@@ -618,7 +618,8 @@ def conn(ip, username, passwd):
         sys.exit(1)
 
 def sshCmd(Tag, ip, serverName):
-    import  paramiko
+    # 有待优化可以将命令行业作为参数实现远程命令执行！！
+    import paramiko
     try:
         cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本和传入参数
         ssh = paramiko.SSHClient()
@@ -636,6 +637,7 @@ def sshCmd(Tag, ip, serverName):
     stderr = stderr.read()
     print stdout, stderr
     ssh.close()
+
 
 def sshCmdMain(Tag, serverName):
     # 远程调用主函数
