@@ -15,7 +15,7 @@ import codecs
 import shutil
 import zipfile
 #import shlex
-import paramiko
+#import paramiko
 #import SSH
 import time
 import ConfigParser
@@ -77,7 +77,7 @@ def copyFile(sourfile,disfile):
 # 上传分发 方法 前提是设置好目标服务器无密码登录
 def sendWarToNode(serverName):
     warName = readConf(serverConfPath, serverName)[serverName]["war"]
-    print readConf(serverConfPath, serverName)
+    #print readConf(serverConfPath, serverName)
     try:
         # 重组ｉｐ　列表
         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
@@ -618,6 +618,7 @@ def conn(ip, username, passwd):
         sys.exit(1)
 
 def sshCmd(Tag, ip, serverName):
+    import  paramiko
     try:
         cmd = "python %s %s %s" % (pyFile, Tag, serverName)  # 调用远程服务器上的执行脚本和传入参数
         ssh = paramiko.SSHClient()
