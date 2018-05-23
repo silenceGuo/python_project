@@ -77,6 +77,7 @@ def copyFile(sourfile,disfile):
 # 上传分发 方法 前提是设置好目标服务器无密码登录
 def sendWarToNode(serverName):
     warName = readConf(serverConfPath, serverName)[serverName]["war"]
+    print readConf(serverConfPath, serverName)
     try:
         # 重组ｉｐ　列表
         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
@@ -332,7 +333,7 @@ def readConf(confPath,serverNAME=""):
             print "serverName:%s server is not exists" %serverNAME
             sys.exit(1)
         for optins in cf.options(serverNAME):
-            if not confCheck(cf,serverName,optins):
+            if not confCheck(cf,serverNAME,optins):
                 sys.exit()
             port = cf.get(serverNAME, optins)
             portDict[optins] = port
