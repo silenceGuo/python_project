@@ -711,7 +711,7 @@ if __name__ == "__main__":
         serName = sys.argv[2]
         if not Tag in ["install", "uninstall", "reinstall"]:
            if not checkServer(serName):
-               print "serverName is Eorr,please check,server:% is not install" %serName
+               print "serverName is Eorr,please check,server:%s is not install" % serName
                sys.exit(1)
         Main(Tag, serName)
     elif len(sys.argv) == 4:
