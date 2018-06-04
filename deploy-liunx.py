@@ -486,17 +486,23 @@ def getBackVersionId(serverName):
         else:
             return int(versionIdList[-1].split("-")[-1].split("V")[-1]) + int(1)
 
+def TimeStampToTime(timestamp):
+    # 时间戳转换为时间
+    timeStruct = time.localtime(timestamp)
+    return time.strftime('%Y-%m-%d %H:%M:%S', timeStruct)
+
 # 返回时间戳
 def getTimeStamp(filePath):
     filePath = unicode(filePath, 'utf8')
     t = os.path.getmtime(filePath)
-    return t
+    # return t
+    return TimeStampToTime(t)
 def cleanHistoryBak(serverName):
     bakdeployRoot = joinPathName(deploymentDir, "%s%s", "bak-%s%s") % (
     tomcatPrefix, serverName, tomcatPrefix, serverName)
     VersinIdList = getVersion(serverName)
     if VersinIdList:
-        cleanVersionList = VersinIdList[0:len(VersinIdList) - keepBakNum]
+        cleanVersionList = VersinIdList[0:(len(VersinIdList) - int(keepBakNum))]
         for i in cleanVersionList:
             bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") %i
             if os.path.exists(bakWarPath):

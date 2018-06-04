@@ -162,7 +162,7 @@ def stopServer(servername):
         stdout, stderr = execCmd(cmd_task_kill)
         if stderr:
             print stderr
-        print "kill %s,%s" % (servername, pid)
+        print "kill %s,%s" % (servername, str(pid))
         time.sleep(checktime)
         pid = getPid(servername)
         if not pid:
@@ -559,9 +559,9 @@ def cleanHistoryBak(serverName):
     bakdeployRoot = joinPathName(bakWarDir, "bak-%s%s") % (tomcatPrefix, serverName)
     VersinIdList = getVersion(serverName)
     if VersinIdList:
-        cleanVersionList = VersinIdList[0:len(VersinIdList) - int(keepBakNum)]
+        cleanVersionList = VersinIdList[0:(len(VersinIdList) - int(keepBakNum))]
         for i in cleanVersionList:
-            bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") %i
+            bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") % i
             #print bakWarPath
             if os.path.exists(bakWarPath):
                 print "clean history back WAR: %s" % bakWarPath
@@ -591,7 +591,7 @@ def backWar(serverName):
             print "back %s >>> %s" % (deployRootWar, bakdeployRootWar)
             copyFile(deployRootWar, bakdeployRootWar)
         else:
-            # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
+            # 判断最后一次备份和现在的文件是否修改不一致，如果一致就不备份，
             if not getTimeStamp(deployRootWar) == getTimeStamp(lastbakdeployRootWar):
                 copyFile(deployRootWar, bakdeployRootWar)
                 if os.path.exists(bakdeployRootWar):
@@ -696,10 +696,12 @@ def updatePy(serverName):
              backWar(serverName)
              if os.path.exists(deployWarPath):
                   os.remove(deployWarPath)
+
              if not os.path.exists(deployWarPath):
                  print "clean history war  %s sucess" % deployWarPath
                  if os.path.exists(jenkinsUploadDirWar):
-                     copyFile(jenkinsUploadDirWar,deployWarPath)
+                     copyFile(jenkinsUploadDirWar, deployWarPath)
+                     time.sleep(2)
                      if os.path.exists(deployWarPath):
                          print "update %s sucess" % deployWarPath
                      else:
@@ -708,6 +710,8 @@ def updatePy(serverName):
                      print "file:%s  is not exists" % jenkinsUploadDirWar
              else:
                  print "clean history war  %s fail" % deployWarPath
+        else:
+            print "war:%s is not exists" % jenkinsUploadDirWar
 
 def updateMain(serverName):
     # 更新版本 服务 只是将war包复制到工程目录并 重命名
@@ -741,8 +745,8 @@ def getTimeStamp(filePath):
     # 返回修改时间时间戳
     filePath = unicode(filePath, 'utf8')
     t = os.path.getmtime(filePath)
-    return t
-    #return TimeStampToTime(t)
+    # return t
+    return TimeStampToTime(t)
 
 def Main(Tag,serverName=""):
     _init()
@@ -802,6 +806,7 @@ def _init():
              jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
              checktime = int(_serverConf["conf"]["checktime"])  # 等待时间 和检查状态次数
              keepBakNum = int(_serverConf["conf"]["keepbaknum"])  # 备份war包保留版本数
+             print keepBakNum
         except KeyError, E:
             print "conf is not %s" % E
             sys.exit()
