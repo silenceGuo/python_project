@@ -502,12 +502,16 @@ def cleanHistoryBak(serverName):
     tomcatPrefix, serverName, tomcatPrefix, serverName)
     VersinIdList = getVersion(serverName)
     if VersinIdList:
-        cleanVersionList = VersinIdList[0:(len(VersinIdList) - int(keepBakNum))]
-        for i in cleanVersionList:
-            bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") %i
-            if os.path.exists(bakWarPath):
-                print "clean history back WAR %s" % bakWarPath
-                os.remove(bakWarPath)
+        if len(VersinIdList) > int(keepBakNum):
+            cleanVersionList = VersinIdList[0:abs(len(VersinIdList) - int(keepBakNum))]
+            for i in cleanVersionList:
+                bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") % i
+                if os.path.exists(bakWarPath):
+                    print "clean history back WAR: %s" % bakWarPath
+                    os.remove(bakWarPath)
+                    #shutil.rmtree(bakWarPath)
+        else:
+            pass
     else:
         print "%s is not bak War" % serverName
 

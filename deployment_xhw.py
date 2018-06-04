@@ -559,14 +559,16 @@ def cleanHistoryBak(serverName):
     bakdeployRoot = joinPathName(bakWarDir, "bak-%s%s") % (tomcatPrefix, serverName)
     VersinIdList = getVersion(serverName)
     if VersinIdList:
-        cleanVersionList = VersinIdList[0:(len(VersinIdList) - int(keepBakNum))]
-        for i in cleanVersionList:
-            bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") % i
-            #print bakWarPath
-            if os.path.exists(bakWarPath):
-                print "clean history back WAR: %s" % bakWarPath
-                os.remove(bakWarPath)
-                #shutil.rmtree(bakWarPath)
+        if len(VersinIdList) > int(keepBakNum):
+            cleanVersionList = VersinIdList[0:abs(len(VersinIdList) - int(keepBakNum))]
+            for i in cleanVersionList:
+                bakWarPath = os.path.join(bakdeployRoot, "ROOT.%s.war") % i
+                if os.path.exists(bakWarPath):
+                    print "clean history back WAR: %s" % bakWarPath
+                    os.remove(bakWarPath)
+                    #shutil.rmtree(bakWarPath)
+        else:
+            pass
     else:
         print "%s is not bak War" % serverName
 
@@ -806,7 +808,7 @@ def _init():
              jenkinsUploadDir = _serverConf["conf"]["jenkinsuploaddir"]  # jenkins 上传路径
              checktime = int(_serverConf["conf"]["checktime"])  # 等待时间 和检查状态次数
              keepBakNum = int(_serverConf["conf"]["keepbaknum"])  # 备份war包保留版本数
-             print keepBakNum
+
         except KeyError, E:
             print "conf is not %s" % E
             sys.exit()
