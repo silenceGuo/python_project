@@ -264,8 +264,18 @@ def startServerPy(servername):
             else:
                 updateMain(servername)
                 if os.path.exists(deployWarPathRoot):
-                     print "clean %s " % deployWarPathRoot
-                     shutil.rmtree(deployWarPathRoot)
+                    time.sleep(2)
+                    print "clean %s " % deployWarPathRoot
+                    try:
+                        shutil.rmtree(deployWarPathRoot, True)
+                    except:
+                        rmbat = "rd /s /q %s" % deployWarPathRoot
+                        stdout, stderr = execCmd(rmbat)
+                        if stdout:
+                            print stdout
+                        if stderr:
+                            print stderr
+
                 call_bat = 'net start %s' % servername
                 stdout, stderr = execCmd(call_bat)
                 if stdout:
@@ -698,7 +708,6 @@ def updatePy(serverName):
              backWar(serverName)
              if os.path.exists(deployWarPath):
                   os.remove(deployWarPath)
-
              if not os.path.exists(deployWarPath):
                  print "clean history war  %s sucess" % deployWarPath
                  if os.path.exists(jenkinsUploadDirWar):
