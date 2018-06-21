@@ -25,6 +25,38 @@ serverConf = "/root/home/jenkinsUpload/server_liunx.conf"  # 部署配置文件
 dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
 serverConfPath = os.path.join(dirname, serverConf)
 
+serviceImagesMoble = """
+# Dockfile for service
+from tomcat7:base
+MAINTAINER Guozq
+ARG ServerNameDir
+ARG WarName
+COPY ${ServerNameDir}/${WarName}  /data/tomcat7/webapps/ROOT.war
+CMD ["/data/tomcat7/bin/catalina.sh","run"]
+
+"""
+
+baseImagesMoble = """
+# Dockfile for tomcat7:base
+FROM centos
+MAINTAINER GuoZQ
+RUN mkdir -pv /data/java1.7.8
+RUN mkdir -pv /data/tomcat7
+COPY java1.7.8 /data/java1.7.8
+COPY tomcat7 /data/tomcat7
+RUN chmod +x /data/tomcat7/bin/*
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+ENV JAVA_HOME=/data/java1.7.8
+ENV JAVA_BIN=/data/java1.7.8/bin
+ENV JRE_HOME=/data/java1.7.8/jre
+ENV PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH
+ENV CLASSPATH=$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/jre/lib/charsets.jar
+ENV JAVA_OPTS="$JAVA_OPTS -Duser.timezone=Asia/Shanghai"
+EXPOSE 8080
+CMD ["/data/tomcat7/bin/catalina.sh","run"]
+"""
 
 def readConf(confPath,serverNAME=""):
     cf = ConfigParser.ConfigParser()
@@ -166,11 +198,25 @@ def printOutErr(stdout, stderr):
 
 def main(serverName,tag="latest"):
     # action = ""
+    baseImages = "tomcat7:base"
     imagesName = "tomcat7-%s:%s" % (serverName, tag)
     serverNameDict = readConf(serverConf, serverName)
     WarName = serverNameDict[serverName]["war"]
     http_port = serverNameDict[serverName]["http_port"]
-    print WarName,http_port
+    jenkinsUploadDirServer = os.path.join(workDir, "%s") % serverName
+    if not os.path.exists(workDir):
+        os.makedirs(workDir)
+    if not os.path.exists(jenkinsUploadDirServer):
+        os.makedirs(jenkinsUploadDirServer)
+    if not os.path.exists(os.path.join(workDir,"Dockerfile")):
+        print "Dockerfile is not exists in %s" %workDir
+        print serviceImagesMoble
+        sys.exit(1)
+    if not checkService(baseImages):
+        print "tomcat7 base images: %s  is not exists" % baseImages
+        print baseImagesMoble
+        sys.exit(1)
+
     # 切换工作目录
     os.chdir(workDir)
     buildImages(imagesName, serverName, WarName)
@@ -186,7 +232,8 @@ if __name__ == "__main__":
        serverName = sys.argv[1]
        tag = sys.argv[2]
     except:
-        print "s"
+        pass
+        #print "s"
     serverName = "upload"
     tag = "test125"
     #imagesName = "tomcat-upload:test3"
