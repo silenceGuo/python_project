@@ -212,7 +212,12 @@ def main(serverName,tag="latest"):
         print "Dockerfile is not exists in %s" %workDir
         print serviceImagesMoble
         sys.exit(1)
-    if not checkService(baseImages):
+    cmd = "docker inspect %s " % baseImages
+    stdout, stderr = execSh(cmd)
+    if stdout:
+        print "%s is exists" % baseImages
+    if stderr:
+        print stderr
         print "tomcat7 base images: %s  is not exists" % baseImages
         print baseImagesMoble
         sys.exit(1)
@@ -233,8 +238,13 @@ if __name__ == "__main__":
        tag = sys.argv[2]
     except:
         pass
-        #print "s"
-    serverName = "upload"
-    tag = "test125"
-    #imagesName = "tomcat-upload:test3"
+    #serverName = "upload"
+    #tag = "test125"
     main(serverName, tag)
+    # baseImages = "tomcat7:base1"
+    # cmd = "docker inspect %s " % baseImages
+    # stdout ,stderr = execSh(cmd)
+    # if stdout:
+    #     print stdout
+    # if stderr :
+    #     print stderr
