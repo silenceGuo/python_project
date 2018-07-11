@@ -57,7 +57,7 @@ ENV JAVA_OPTS="$JAVA_OPTS -Duser.timezone=Asia/Shanghai"
 EXPOSE 8080
 CMD ["/data/tomcat7/bin/catalina.sh","run"]
 """
-
+# 读取配置文件
 def readConf(confPath,serverNAME=""):
     cf = ConfigParser.ConfigParser()
     cf.read(confPath)
@@ -91,8 +91,7 @@ def readConf(confPath,serverNAME=""):
             portDict={}
             serverNameDict ={}
         return serverNameList
-
-
+# 配置文件检查
 def confCheck(cf, section, option):
     if not cf.options(section):
         print "no section: %s in conf file" % section
@@ -107,7 +106,7 @@ def confCheck(cf, section, option):
         return False
     else:
         return True
-
+#执行ssh 命令
 def execSh(cmd):
     # 执行SH命令
     try:
@@ -117,69 +116,69 @@ def execSh(cmd):
         print e,
         sys.exit()
     return p.communicate()
-
+# 构建服务镜像
 def buildImages(imagesName, serverNameDir, WarName):
     buildImages = "docker build -t %s " \
                   "--build-arg ServerNameDir=%s " \
                   "--build-arg WarName=%s ." % (imagesName, serverNameDir, WarName)
     buildStdout, buildStderr = execSh(buildImages)
     if printOutErr(buildStdout, buildStderr):
-        print "build images sucess"
+        print "build images sucess:%s " % imagesName
         return True
     else:
-        print "build images fail"
+        print "build images fail:%s " % imagesName
         sys.exit()
         #return False
-
+# 推送镜像至私有仓库
 def pushImages(imagesName):
     pushImage = "docker push %s" % imagesName
     pushStdout, pushStderr = execSh(pushImage)
     if printOutErr(pushStdout, pushStderr):
-        print "push images sucess "
+        print "push images sucess :%s " % imagesName
         return True
     else:
-        print " push images fail "
+        print " push images fail :%s " % imagesName
         #return False
         sys.exit()
-
+# 创建 服务
 def createService(serverName, port, imagesName):
     createService = "docker service create " \
                     "--replicas 1 " \
                     "--update-delay 10s " \
                     "--update-failure-action continue " \
                     "--network tomcat_net " \
+                    "--constraint node.hostname!=centos1 " \
                     "--name %s  " \
                     "-p %s:8080 %s" % (serverName, port, imagesName)
     createStdout, creatStderr = execSh(createService)
-    print createStdout,"s" ,creatStderr
     if printOutErr(createStdout, creatStderr):
-        print "create service sucess"
+        print "create service sucess :%s" % serverName
     else:
-        print "create service fail"
-        sys.exit()
-
+        print "create service fail :%s" % serverName
+        sys.exit(1)
+# 更新服务
 def updateService(imagesName, serverName):
     updateService = "docker service update --image %s %s" % (imagesName, serverName)
-    print "update service"
+    print "update service:%s" % serverName
     updateStdout, updateStderr = execSh(updateService)
     if printOutErr(updateStdout, updateStderr):
-        print "update service sucess"
+        print "update service sucess:%s" % serverName
         return True
     else:
-        print "update service fail"
+        print "update service fail:%s" % serverName
         return False
         #sys.exit()
-
+# 回滚服务
 def rollBackService(serverName):
     rollbackService = "docker service update --rollback %s" % serverName
     print "rollback service"
     rollbackupdateStdout, rollbackStderr = execSh(rollbackService)
     if printOutErr(rollbackupdateStdout, rollbackStderr):
-        print "rollback service sucess"
+        print "rollback service sucess :%s " % serverName
     else:
-        print "rollback service fail"
+        print "rollback service fail :%s " % serverName
         sys.exit()
-
+# 检查服务是否存在
 def checkService(serverName):
     checkServiceCMD = "docker service inspect %s" % serverName
     checkStdout, checkStderr = execSh(checkServiceCMD)
@@ -188,6 +187,22 @@ def checkService(serverName):
     else:
         return False
 
+# 检查 覆盖网络，创建覆盖网络
+def createNetwork(networkName):
+    creatNetworkCmd = "docker network create -d overlay %s" % networkName
+    checkNetworkCmd = "docker network inspect %s " % networkName
+    checkNetworkStdout, checkNetworkStderr = execSh(checkNetworkCmd)
+
+    if printOutErr(checkNetworkStdout, checkNetworkStderr):
+        return True
+    else:
+        checkStdout, checkStderr = execSh(creatNetworkCmd)
+        if printOutErr(checkStdout, checkStderr):
+            return True
+        else:
+            return False
+
+#
 def printOutErr(stdout, stderr):
     if stdout and len(stdout) > 3:
         print "stdout >>>", stdout
@@ -195,7 +210,7 @@ def printOutErr(stdout, stderr):
     if stderr:
         print "stderr >>>", stderr
         return False
-
+# 主函数
 def main(serverName,tag="latest"):
     # action = ""
     baseImages = "tomcat7:base"
@@ -208,7 +223,7 @@ def main(serverName,tag="latest"):
         os.makedirs(workDir)
     if not os.path.exists(jenkinsUploadDirServer):
         os.makedirs(jenkinsUploadDirServer)
-    if not os.path.exists(os.path.join(workDir,"Dockerfile")):
+    if not os.path.exists(os.path.join(workDir, "Dockerfile")):
         print "Dockerfile is not exists in %s" %workDir
         print serviceImagesMoble
         sys.exit(1)
@@ -224,6 +239,10 @@ def main(serverName,tag="latest"):
 
     # 切换工作目录
     os.chdir(workDir)
+    WarPath = os.path.join(workDir,serverName,WarName)
+    if not os.path.exists(WarPath):
+        print "%s is not exists" % WarPath
+        sys.exit(1)
     buildImages(imagesName, serverName, WarName)
     pushImages(imagesName)
     if checkService(serverName):
@@ -236,15 +255,14 @@ if __name__ == "__main__":
     try:
        serverName = sys.argv[1]
        tag = sys.argv[2]
+       main(serverName, tag)
     except:
-        pass
-    #serverName = "upload"
-    #tag = "test125"
-    main(serverName, tag)
-    # baseImages = "tomcat7:base1"
-    # cmd = "docker inspect %s " % baseImages
-    # stdout ,stderr = execSh(cmd)
-    # if stdout:
-    #     print stdout
-    # if stderr :
-    #     print stderr
+        for serverDict in readConf(serverConfPath):
+
+            for serverName, portdict in serverDict.items():
+                main(serverName, tag="V4.0.0")
+                time.sleep(30)
+
+
+
+
