@@ -12,7 +12,7 @@ limit = 30  # 错误访问次数上限!
 def filerev(fn):
     buffer = 256
     f = open(fn)
-    f.seek(0,2)
+    f.seek(0, 2)
     size = f.tell()
     rem = size % buffer
     offset = max(0,size - (buffer +rem))
@@ -78,7 +78,7 @@ def checkIptable():
             iptablesList.append(isIP(i)[0])
     return iptablesList
 
-def backIp(fn,logType="",keyword=""):
+def backIp(fn,logType="",keyword="",whiteKey=""):
     dictip = {}
     for i in filerev(fn):
         #print i
@@ -96,13 +96,24 @@ def backIp(fn,logType="",keyword=""):
             else:
                 dictip[ip] += 1
         else:
-            if keyword in i:
+            #print i
+            if whiteKey in i:
+                #print i
                 ip = isIP(i)[0]
+                #print ip
                 if not dictip.has_key(ip):
                     dictip[ip] = 1
                 else:
                     dictip[ip] += 1
 
+                continue
+           # print i
+           #  elif keyword in i:
+           #      ip = isIP(i)[0]
+           #      if not dictip.has_key(ip):
+           #          dictip[ip] = 1
+           #      else:
+           #          dictip[ip] += 1
     print dictip
     return dictip
 
@@ -148,7 +159,7 @@ def checkOS():
     fn = "/etc/redhat-release"
     for line in filerev(fn):
        """ return centos version """
-       return [i for i in line.split(" ") if i ][-2].split(".")[0]
+       return [i for i in line.split(" ") if i][-2].split(".")[0]
 
 def fileIsExists(fn):
     if os.path.exists(fn):
@@ -157,7 +168,16 @@ def fileIsExists(fn):
 
 def writeWafBackIp(ip,backipfile):
     with open(backipfile, "a") as fd:
-        fd.write("\n"+ip)
+        #print fd.tell()
+        fd.seek(0, 2)
+        if fd.tell() == 0:
+            fd.write(ip)
+        else:
+           #fd.seek(0,2)
+           print fd.tell()
+           fd.write("\n"+ip)
+        #fd.write(ip)
+
         print "write ip:%s in backipFiLe:%s " %(ip, backipfile)
 
 def checkWafBackIp(ip,backipfile):
@@ -171,39 +191,59 @@ def checkWafBackIp(ip,backipfile):
     else:
         return False
 
+def checkBackKey():
+    pass
+
+def checkWhiteKey():
+
+    pass
+
 if __name__ == '__main__':
-    osVersion = checkOS()
+    #osVersion = checkOS()
+    backkeyList = []
+    whiteKeyList = ["upload.js"]
+    whiteKeyList2 = ["jquery.uploadify.min.js"]
     import time
     date = time.strftime("%Y-%m-%d")
-    if osVersion == "6":
-        fn = "/var/log/secure"
-        fn2 = "/var/log/httpd/access.log"  # httpd 访问错误日志
-        if fileIsExists(fn):
-            iptables(fn)
-        else:
-            print "%s is not exists" % fn
-
-        if fileIsExists(fn2):
-            iptables(fn2)
-        else:
-            print "%s is not exists" % fn
-    elif osVersion == "7":
-        fn = "/var/log/httpd/error_log"  # httpd 访问错误日志
-        fn2 = "/var/log/secure"  # ssh 登陆失败日志
-        if fileIsExists(fn):
-            firedWalld(fn,logType='HTTPD')
-        if fileIsExists(fn2):
-            firedWalld(fn2,logType='SSHD',keyword="Failed password")
-
-    else:
-        print "check file log"
+    # if osVersion == "6":
+    #     fn = "/var/log/secure"
+    #     fn2 = "/var/log/httpd/access.log"  # httpd 访问错误日志
+    #     if fileIsExists(fn):
+    #         iptables(fn)
+    #     else:
+    #         print "%s is not exists" % fn
+    #     if fileIsExists(fn2):
+    #         iptables(fn2)
+    #     else:
+    #         print "%s is not exists" % fn2
+    # elif osVersion == "7":
+    #     fn = "/var/log/httpd/error_log"  # httpd 访问错误日志
+    #     fn2 = "/var/log/secure"  # ssh 登陆失败日志
+    #     if fileIsExists(fn):
+    #         firedWalld(fn,logType='HTTPD')
+    #     if fileIsExists(fn2):
+    #         firedWalld(fn2,logType='SSHD',keyword="Failed password")
+    #
+    # else:
+    #     print "check file log"
     # 结合OpenResty的web waf 将cc攻击ip添加到黑名单
-    fn1 = "/tmp/%s_waf.log" % date
-    backipfile = "/usr/local/nginx/conf/waf/rule-config/blackip.rule"
-    for ip, num in backIp(fn1, keyword="CC_Attack").iteritems():
-        if int(num) > int(10):
-            if not checkWafBackIp(ip, backipfile):
-                writeWafBackIp(ip, backipfile)
+    # fn = sys.argv[1]
+    fn1 = "%s_waf.log" % date
+    fn2 = "C:\Users\\Administrator\Desktop\\apk\\2018-07-13_waf.log"
+    backIp(fn2, keyword="CC_Attack", whiteKey="jquery.uploadify.min.js")
+    backIp(fn2, keyword="CC_Attack", whiteKey="upload.js")
+    # for whiteKey in whiteKeyList:
+    #      backIp(fn2, keyword="CC_Attack", whiteKey=whiteKey)
+
+    # fn3 = "C:\Users\\Administrator\Desktop\\apk\\access.log"
+    # #backipfile = "/usr/local/nginx/conf/waf/rule-config/blackip.rule"
+    # backipfile = "C:\Users\Administrator\Desktop\\apk\\blackip.rule"
+    # for ip, num in backIp(fn2, keyword="CC_Attack").iteritems():
+    #     print num
+    #     if int(num) > int(10):
+    #         if not checkWafBackIp(ip, backipfile):
+    #
+    #             writeWafBackIp(ip, backipfile)
 
 
 
