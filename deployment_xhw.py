@@ -224,7 +224,7 @@ def startServer(servername):
                     print 'batpath name is err'
                     break
                 break
-
+##
 def startServerPy(servername):
     # 启动服务
     if checkServer(servername):
