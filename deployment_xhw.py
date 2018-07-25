@@ -630,19 +630,24 @@ def backWarMain(serverNAME):
 
 def rollBack(versionId, serverName):
     versionList = getVersion(serverName)
+    war = readConf(serverConfPath, serverName)[serverName]["war"]
     if not versionList:
         print "Not Back war File :%s" % serverName
     else:
         bakdeployRootWar = joinPathName(bakWarDir, "bak-%s%s", "ROOT.%s.war") % (tomcatPrefix,serverName, versionId)
+        # 回滚到备份war包到发布目录
         deployRootWar = joinPathName(deploymentDir, "%s%s", "webapps", "ROOT.war") % (tomcatPrefix,serverName)
-        deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix,serverName)
+        # 因为现在启动每次都会重新从jenkins上传目录复制war到发布目录，所有，回滚直接将备份war复制到上传目录即可实现
+        # 回滚重启的连续操作
+        jenkinsUploadDirWar = joinPathName(jenkinsUploadDir, "%s") % war
+        deployWarPathRoot = joinPathName(deploymentDir, "%s%s/webapps/ROOT") % (tomcatPrefix, serverName)
         if not os.path.exists(bakdeployRootWar):
             print "File:%s is not exits" % bakdeployRootWar
-        if os.path.exists(deployRootWar):
-            os.remove(deployRootWar)
-            print "clean %s file" % deployRootWar
-        copyFile(bakdeployRootWar, deployRootWar)
-        if os.path.exists(deployRootWar):
+        if os.path.exists(jenkinsUploadDirWar):
+            os.remove(jenkinsUploadDirWar)
+            print "clean %s file" % jenkinsUploadDirWar
+        copyFile(bakdeployRootWar, jenkinsUploadDirWar)
+        if os.path.exists(jenkinsUploadDirWar):
             print "RollBack Sucess,update serverName:%s" % serverName
             print "Rollback Version:%s " % versionId
             #stopMain(serverName)
@@ -653,7 +658,7 @@ def rollBack(versionId, serverName):
             #     if os.path.exists(deployWarPathRoot):
             #         shutil.rmtree(deployWarPathRoot)
         else:
-            print "check File:%s ,rollback Fail" % deployRootWar
+            print "check File:%s ,rollback Fail" % jenkinsUploadDirWar
 
 def rollBackMain(serverNAME):
     # 默认回滚发布前上一个版本
@@ -780,6 +785,9 @@ def Main(Tag,serverName=""):
         #sendWarToNodeMain(serverName)
     elif Tag == "rollback":
         rollBackMain(serverName)
+        stopMain(serverName)
+        startMain(serverName)
+
     elif Tag == "back":
         backWarMain(serverName)
     else:
@@ -855,6 +863,7 @@ if __name__ == "__main__":
                rollback:[serverName] [remote]"""
         sys.exit(1)
     if len(sys.argv) == 2:
+        print ""
         Tag = sys.argv[1]
         Main(Tag)
     elif len(sys.argv) == 3:
