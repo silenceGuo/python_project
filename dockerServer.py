@@ -4,6 +4,7 @@
 # @date   : 2018/6/21 0021 10:52
 # @file   : dockerServer.py
 from subprocess import PIPE, Popen
+from optparse import OptionParser
 import time
 import os
 import sys
@@ -251,18 +252,31 @@ def main(serverName,tag="latest"):
     else:
         createService(serverName, http_port, imagesName)
 
+def opt():
+    #时间戳做默认tag,参数函数
+    tagDate = time.strftime("%Y%m%d%H%M%S")
+    parser = OptionParser('usage:python %prog -s serverName | -t tag')
+    parser.add_option('-s',
+                      dest='serverName',
+                      action='store',
+                      help='serverName')
+    parser.add_option('-t',
+                      dest='tag',
+                      action='store',
+                      default=tagDate,
+                      help='tag')
+    options, args = parser.parse_args()
+    return options, args
 if __name__ == "__main__":
-    try:
-       serverName = sys.argv[1]
-       tag = sys.argv[2]
-       main(serverName, tag)
-    except:
-        for serverDict in readConf(serverConfPath):
-
-            for serverName, portdict in serverDict.items():
-                main(serverName, tag="V4.0.0")
+     options,args = opt()
+     serverName = options.serverName
+     tag = options.tag
+     print serverName, tag
+     if serverName:
+         main(serverName,tag)
+     else:
+         for serverDict in readConf(serverConfPath):
+             for serverName, portdict in serverDict.items():
+                main(serverName, tag=tag)
                 time.sleep(30)
-
-
-
 
