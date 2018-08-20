@@ -271,12 +271,12 @@ if __name__ == "__main__":
      options,args = opt()
      serverName = options.serverName
      tag = options.tag
-     print serverName, tag
+
      if serverName:
          main(serverName,tag)
      else:
          for serverDict in readConf(serverConfPath):
              for serverName, portdict in serverDict.items():
                 main(serverName, tag=tag)
-                time.sleep(30)
+                time.sleep(5)
 
