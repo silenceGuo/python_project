@@ -53,3 +53,4 @@ resize = [(320, 680), (760, 1024), (64, 64)]
 for i in imglist:
     for s in resize:
         resize_image(i, resize_path,  s)
+# dd
