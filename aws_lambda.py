@@ -31,7 +31,6 @@ def resize_image(image_path, resized_path,re_size):
         resize_path = "%s_%s_%s%s" % (imageName, str(newWidth), str(newHeight), imagePreix)
         image.save(resize_path)
 
-
 def handler(event, context):
     for record in event['Records']:
         bucket = record['s3']['bucket']['name']
@@ -47,10 +46,8 @@ image_path1 = "F:\\kilimall\\tmp\\IMG_1914_1.jpg"
 image_path2 = "F:\\kilimall\\tmp\\IMG_1948_1.jpg"
 resize_path = "F:\\kilimall\\tmp\\2.jpg"
 imglist = [image_path1, image_path2]
-
 resize = [(320, 680), (760, 1024), (64, 64)]
-#getImagepath(image_path)
+
 for i in imglist:
     for s in resize:
         resize_image(i, resize_path,  s)
-# dd
