@@ -32,6 +32,9 @@ baseTomcat = "/apps/tomcat-base/"
 tomcatPrefix = "tomcat-"
 warDir = "/data/init/"  # war
 
+#jekinsDir = "/data/ke-dms/web/target/platform-kedms.war"
+jenkinsDir = "/data/"
+
 # pyFile ="/home/scripts/deploy-liunx.py" # 指远程服务器执行py脚本路径
 checktime = 5  # 等待时间 和检查状态次数
 keepBakNum = 2  # 备份war包保留版本数
@@ -559,6 +562,34 @@ def rollBack(serverName,versionId=""):
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
 
+def sendWarToNode(serverName):
+    print serverNameDictList
+#     warName = readConf(serverConfPath, serverName)[serverName]["war"]
+#     #print readConf(serverConfPath, serverName)
+#     try:
+#         # 重组ｉｐ　列表
+#         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
+#     except:
+#         print "Check Config File"
+#         sys.exit()
+#     if not ipList:
+#         print "%s no need send serverIP" % serverName
+#     else:
+#         loaclPath = os.path.join(jenkinsUploadDir, serverName, warName)
+#         remotePath = os.path.join(jenkinsUploadDir, serverName, warName)
+#         if not os.path.exists(remotePath):
+#             os.mkdir(remotePath)
+# #        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+#         if not os.path.exists(loaclPath):
+#             print " File:%s is not exits" % loaclPath
+#             sys.exit()
+#         for ip in ipList:
+#             cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
+#             stdout, stderr = execSh(cmd)
+#             if stderr:
+#                 print stderr
+#                 print "check local path,or remote path!"
+#                 continue
 
 def main(action,serverName,version):
     # action = action.lower()
@@ -590,6 +621,8 @@ def main(action,serverName,version):
             print "%s not back" % serverName
         else:
             print "%s has back version:%s" % (serverName,versionlist)
+    elif action == "deploy":
+        sendWarToNode(serverName)
     else:
         print "action is -a [install,uninstall,reinstall,stop,start,restart,back,rollback,getback] -n servername [all]"
         sys.exit(1)
@@ -605,6 +638,8 @@ if __name__ == "__main__":
     # print options,args
     # print version
     # rollBack(serverName,version)
+
+
     if serverName == "all":
         for serverNameDict in serverNameDictList:
             for seName,portDict in serverNameDict.iteritems():
