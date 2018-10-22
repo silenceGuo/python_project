@@ -23,25 +23,26 @@ import ConfigParser
 from optparse import OptionParser
 reload(sys)
 sys.setdefaultencoding('utf-8')
-serverConf = "server_liunx.conf"  # 部署配置文件
-#uploadConf = "upload_liunx.conf"  # 部署配置文件
-
-deploymentAppDir = "/apps/"  # 部署工程目录存放tomcat
-bakDir = "/apps/bak/"  # 备份上一次的应用目录
-baseTomcat = "/apps/tomcat-base/"
-tomcatPrefix = "tomcat-"
+serverConf_pro = "/data/init/tomcat_pro.conf"  # 部署配置文件
+serverConf_test = "/data/init/tomcat.conf"  # 部署配置文件
+deploymentAppDir = "/app/"  # 部署工程目录存放tomcat
+bakDir = "/app/bak/"  # 备份上一次的应用目录
+baseTomcat = "/app/tomcat-base/"
+tomcatPrefix = ""
 warDir = "/data/init/"  # war
-
-#jekinsDir = "/data/ke-dms/web/target/platform-kedms.war"
+ansibleHostFile = "/data/jks/host/iplist"
 jenkinsDir = "/data/"
+ansibleYaml = "/etc/ansible/tomcat.yml"
 
 # pyFile ="/home/scripts/deploy-liunx.py" # 指远程服务器执行py脚本路径
-checktime = 5  # 等待时间 和检查状态次数
-keepBakNum = 2  # 备份war包保留版本数
+checktime = 2  # 等待时间 和检查状态次数
+keepBakNum = 5  # 备份war包保留版本数
 
 # 取当前脚步的绝对路径，并拼装配置文件路径
-dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-serverConfPath = os.path.join(dirname, serverConf)
+# dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
+# serverConfPath = os.path.join(dirname, serverConf)
+
+# ansibleHostFilePath = os.path.join(dirname, ansibleHostFile)
 
 def getOptions():
     parser = OptionParser()
@@ -54,12 +55,17 @@ def getOptions():
     parser.add_option("-a", "--action", action="store",
                       dest="action",
                       default=False,
-                      help="action -a [install,uninstall,reinstall,stop,start,restart,back,rollback,getback]")
+                      help="action -a [deploy,install,uninstall,reinstall,stop,start,restart,back,rollback,getback]")
 
     parser.add_option("-v", "--versionId", action="store",
                       dest="versionId",
                       default=False,
                       help="-v versionId")
+
+    parser.add_option("-g", "--groupName", action="store",
+                      dest="groupName",
+                      default=False,
+                      help="-g groupName")
 
 
 
@@ -79,34 +85,30 @@ def getDeploymentTomcatPath(serverName):
             "bakServerDir": bakServerDir
             }
 
-def _init():
+def _init(confPath):
     # 初始化基础目录
 
     if not os.path.exists(deploymentAppDir):
         os.makedirs(deploymentAppDir)
     if not os.path.exists(bakDir):
         os.makedirs(bakDir)
-    if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s "% serverConfPath
+    if not os.path.exists(confPath):
+        print "serverconf is not exists,check serverconf %s "% confPath
         print """ %s like this:
                    [b2b-trade-api]
                     http_port = 8048
                     ajp_port = 8148
                     shutdown_port = 8248
                     war = com.hxh.xhw.upload.war
-                    ip = 192.168.0.159,192.168.0.59""" % serverConf
+                    ip = 192.168.0.159,192.168.0.59""" % confPath
         sys.exit()
     else:
         # 读配置文件 服务配置
         global serverNameDictList
-        serverNameDictList = readConf(serverConfPath)
+        serverNameDictList = readConf(confPath)
 
         if not chekPort():
             sys.exit()
-
-    if not os.path.exists(baseTomcat):
-        print "Base tomcat File (%s) is not exists" % baseTomcat
-        sys.exit()
 
 #读取配置文件
 def readConf(confPath):
@@ -150,6 +152,7 @@ def confCheck(cf, section, option):
         return False
     else:
         return True
+
 # 检查服务注册状态
 def checkServer(serverName):
 
@@ -180,10 +183,16 @@ def chekPort():
             return False
     return True
 
+def checkServerInConf():
+    pass
 
 # 注册服务
 
 def installServer(serverName):
+    if not os.path.exists(baseTomcat):
+        print "Base tomcat File (%s) is not exists" % baseTomcat
+        sys.exit()
+
     serverList = []
     if not checkServer(serverName):
         for serverNameDict in serverNameDictList:
@@ -250,7 +259,7 @@ def stopServer(serverName):
     # 停止服务 先正常停止，多次检查后 强制杀死！
     deployDir = getDeploymentTomcatPath(serverName)["deployServerTomcatDir"]
     shutdown = os.path.join(deployDir, "bin/shutdown.sh")
-    cmd = "su tomcat %s" % shutdown
+    cmd = "sudo su - tomcat -c '/bin/bash %s'" % shutdown
     pid = getPid(serverName)
     if not pid:
         print "Server:%s is down" % serverName
@@ -271,7 +280,14 @@ def stopServer(serverName):
     if getPid(serverName):
         print "Server:%s,shutdown fail pid:%s" % (serverName, getPid(serverName))
         try:
-            os.kill(pid, signal.SIGKILL)
+            cmd = "sudo kill -9 %s" % pid
+            killstdout, killsterr = execSh(cmd)
+            if killstdout:
+                print killstdout
+            if killsterr:
+                print killsterr
+
+            # os.kill(pid, signal.SIGKILL)
             # os.kill(pid, signal.9) #　与上等效
             print 'Killed server:%s, pid:%s' % (serverName, pid)
         except OSError, e:
@@ -297,38 +313,15 @@ def startServer(serverName):
     #             break
 
     deployDir = getDeploymentTomcatPath(serverName)["deployServerTomcatDir"]
-    # deployServerDir = getDeploymentTomcatPath(serverName)["deployServerDir"]
     startSh = os.path.join(deployDir, "bin/startup.sh")
     cmd = "sudo su - tomcat -c '/bin/bash %s'" % startSh
     binDir = os.path.join(deployDir, "bin/*")
-
     deployServerWarDir = getDeploymentTomcatPath(serverName)["deployServerWarDir"]
 
-    #deployWarPath = os.path.join(deployServerDir,"lipapay-web-1.0.war")
-
-    # warDirPath = os.path.join(warDir, war)
-
-    chmodCmd = "chmod 755 -R %s" % binDir
-    # chmodCmd2 = "chmod 755 -R %s" % deployDir
-    # chmodCmd3 = "chmod 755 -R %s" % deployServerWarDir
-
-    chownCmd = "chown -R tomcat:tomcat %s" % deployDir
-    chownCmd2 = "chown -R tomcat:tomcat %s" % binDir
-    chownCmd3 = "chown -R tomcat:tomcat %s" % deployServerWarDir
-
-    # cmd = "su - tomcat %s" % startSh
-    #cmd = "su tomcat nohup %s &" % startSh
     pid = getPid(serverName)
     if not pid:
         print "Start Server:%s" % serverName
 
-        execSh(chmodCmd)
-        # execSh(chmodCmd2)
-        # execSh(chmodCmd3)
-        # 更改所属 组
-        execSh(chownCmd)
-        execSh(chownCmd2)
-        execSh(chownCmd3)
         stdout, stderr = execSh(cmd)  # 执行 启动服务命令
         if stdout:
             print "stdout:%s" % stdout
@@ -336,7 +329,7 @@ def startServer(serverName):
             print "stderr:%s " % stderr
 
         for i in range(checktime):
-            time.sleep(10)
+            time.sleep(5)
             print "check servname :%s num:%s" % (serverName, i + 1)
             pidtmp = getPid(serverName)
             if pidtmp:
@@ -510,28 +503,29 @@ def backWar(serverName):
     lastbakdeployRootWar = os.path.join(bakServerDir,"war.%s") % (lastVersinId)
     # print lastbakdeployRootWar
 
-    if not os.path.exists(deployWar):
-        os.mkdir(deployWar)
-    if os.path.exists(deployWar):
-        if not os.path.exists(lastbakdeployRootWar):
-            print "back %s >>> %s" % (deployWar, bakdeployRootWar)
-            # copyFile(deployWar, bakdeployRootWar)
-            copyDir(deployWar, bakdeployRootWar)
-        else:
-            # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
-            if not getTimeStamp(deployWar) == getTimeStamp(lastbakdeployRootWar):
-                print "back %s >>> %s" % (deployWar, bakdeployRootWar)
-                copyDir(deployWar, bakdeployRootWar)
-                cleanHistoryBak(serverName)
-                if os.path.exists(bakdeployRootWar):
-                    print "back %s sucess" % bakdeployRootWar
-                else:
-                    print "back %s fail" % deployWar
-            else:
-                # print getVersion(serverName)
-                print "File:%s is not modify,not need back" % deployWar
+    if not checkServer(serverName):
+        print "%s is not install" % serverName
     else:
-        print "file %s or %s is not exists" % (deployWar,bakdeployRootWar)
+        if os.path.exists(deployWar):
+            if not os.path.exists(lastbakdeployRootWar):
+                print "back %s >>> %s" % (deployWar, bakdeployRootWar)
+                # copyFile(deployWar, bakdeployRootWar)
+                copyDir(deployWar, bakdeployRootWar)
+            else:
+                # 判断 最后一次备份和现在的文件是否 修改不一致，如果一致就不备份，
+                if not getTimeStamp(deployWar) == getTimeStamp(lastbakdeployRootWar):
+                    print "back %s >>> %s" % (deployWar, bakdeployRootWar)
+                    copyDir(deployWar, bakdeployRootWar)
+                    cleanHistoryBak(serverName)
+                    if os.path.exists(bakdeployRootWar):
+                        print "back %s sucess" % bakdeployRootWar
+                    else:
+                        print "back %s fail" % deployWar
+                else:
+                    # print getVersion(serverName)
+                    print "File:%s is not modify,not need back" % deployWar
+        else:
+            print "file %s or %s is not exists" % (deployWar,bakdeployRootWar)
 
 def rollBack(serverName,versionId=""):
     dirDict = getDeploymentTomcatPath(serverName)
@@ -562,36 +556,80 @@ def rollBack(serverName,versionId=""):
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
 
-def sendWarToNode(serverName):
-    print serverNameDictList
-#     warName = readConf(serverConfPath, serverName)[serverName]["war"]
-#     #print readConf(serverConfPath, serverName)
-#     try:
-#         # 重组ｉｐ　列表
-#         ipList = [i for i in readConf(serverConfPath, serverName)[serverName]["ip"].split(",") if i]
-#     except:
-#         print "Check Config File"
-#         sys.exit()
-#     if not ipList:
-#         print "%s no need send serverIP" % serverName
-#     else:
-#         loaclPath = os.path.join(jenkinsUploadDir, serverName, warName)
-#         remotePath = os.path.join(jenkinsUploadDir, serverName, warName)
-#         if not os.path.exists(remotePath):
-#             os.mkdir(remotePath)
-# #        cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
-#         if not os.path.exists(loaclPath):
-#             print " File:%s is not exits" % loaclPath
-#             sys.exit()
-#         for ip in ipList:
-#             cmd = "scp  -C %s root@%s:%s" % (loaclPath, ip, remotePath)
-#             stdout, stderr = execSh(cmd)
-#             if stderr:
-#                 print stderr
-#                 print "check local path,or remote path!"
-#                 continue
+def readConfAnsible(file):
+    cf = ConfigParser.ConfigParser(allow_no_value=True)
+    cf.read(file)
+    try:
+        cf.read(file)
+    except ConfigParser.ParsingError, e:
+        print e
+        print "please check conf %s" % file
+        sys.exit()
+    groupNameDict = { }
+    for groupName in cf.sections():
+        iplist = []
+        for ip in cf.options(groupName):
+            iplist.append(ip)
+            # print groupName, ip
+        groupNameDict[groupName] = iplist
+    return groupNameDict
 
-def main(action,serverName,version):
+def sendWarToNode(serverName,grouName):
+    if not os.path.exists(ansibleHostFile):
+        print "serverconf is not exists,check serverconf %s " % ansibleHostFile
+        print """ %s like this:
+                           [test]
+                           192.168.0.159
+                           192.168.0.59""" % ansibleHostFile
+        print "%s is not exists" % (ansibleHostFile)
+        sys.exit()
+    serverList = []
+
+    for serverNameDict in serverNameDictList:
+
+        for serName, optionsDict in serverNameDict.iteritems():
+            serverList.append(serName)
+    if serverName not in serverList:
+        print "%s is err in %s" % (serverName, serverConfPath)
+
+    getDeploymentTomcatPath(serverName)
+    groupDict = readConfAnsible(ansibleHostFile)  # 回去执行IP
+    tomcatWar = getDeploymentTomcatPath(serverName)["deployServerWarDir"] #下发的目标路径
+    try:
+        iplist = groupDict[grouName]
+    except:
+        print "check file: %s" % ansibleHostFile
+        sys.exit()
+
+
+
+    """ansible test -m shell -a "/usr/bin/python /data/init/deploytomcat.py -a back -n comments-test" --inventory-file=/data/init/conf.test --sudo"""
+
+    for serverNameDict in serverNameDictList:
+        for serName, portDict in serverNameDict.iteritems():
+            if serverName == serName:
+                try:
+                    warFile = portDict["war"]
+                except:
+                    print "%s is war is err" % serverConf
+                    break
+                if not os.path.exists(warFile):
+                    print "%s is not exists" % warFile
+                    sys.exit()
+
+                # for ip in iplist:
+                #     print "send %s to %s %s" % (warFile, ip, tomcatWar)
+
+                # cmd = "/usr/local/bin/ansible-playbook %s --extra-vars 'host=%s war_file=%s tomcat_war=%s'" % (ansibleYaml, ip, warFile, tomcatWar)
+                cmd = "sudo /usr/local/bin/ansible-playbook -i %s %s --extra-vars 'host=%s war_file=%s tomcat_war=%s'" % (ansibleHostFile, ansibleYaml, groupName, warFile, tomcatWar)
+                stdout, stderr = execSh(cmd)
+                if stderr:
+                    print stderr
+                if stdout:
+                    print stdout
+                break
+
+def main(action,serverName,version,groupName):
     # action = action.lower()
     # print action
     if action =="install":
@@ -622,28 +660,26 @@ def main(action,serverName,version):
         else:
             print "%s has back version:%s" % (serverName,versionlist)
     elif action == "deploy":
-        sendWarToNode(serverName)
+        sendWarToNode(serverName, groupName)
     else:
-        print "action is -a [install,uninstall,reinstall,stop,start,restart,back,rollback,getback] -n servername [all]"
+        print "action is -a [deploy,install,uninstall,reinstall,stop,start,restart,back,rollback,getback] -n servername [all]"
         sys.exit(1)
 
 
 if __name__ == "__main__":
 
-    _init()
     options, args = getOptions()
     action = options.action
     version = options.versionId
     serverName = options.serverName
-    # print options,args
-    # print version
-    # rollBack(serverName,version)
+    groupName = options.groupName
+    _init(serverConf_test)
 
 
     if serverName == "all":
         for serverNameDict in serverNameDictList:
             for seName,portDict in serverNameDict.iteritems():
-                 main(action, seName, version)
+                 main(action, seName, version,groupName)
     else:
-        main(action, serverName, version)
+        main(action, serverName, version,groupName)
 
