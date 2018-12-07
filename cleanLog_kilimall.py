@@ -29,10 +29,10 @@ now_date = str(datetime.datetime.now()).split(' ')[0]
 remove_log_dir = '/tmp/rm_logs/'  # 删除记录日志路径
 rw_log = now_date + "_rw.log"   #文件名
 
-# 设置 多个删除文件路径 和单独的天数设置
+# 设置 多个删除文件路径 和单独的小时设置
 SerivceNameLogDict = {
                       #"/var/log/py/": 2,
-                      "/var/log/": 3,
+                      "/app/project/test/": 720,
 }
 def _init():
     # 初始化，检查 应用路径是否正确，返回存在的应用日志路径。
@@ -57,20 +57,27 @@ def listDirName(service_dir):
     return fileList
 
 """
-判断文件是否为多天前文件 以修改时间为准
+判断文件是否为多少小时前文件 以修改时间为准
 """
 
-def fileNameMtime(filename, days):
+def fileNameMtime(filename, hours):
     mtime = time.ctime(os.path.getmtime(filename))
     ctime = time.ctime(os.path.getctime(filename))
     mtime_s = (os.path.getmtime(filename))
     ctime_s = (os.path.getctime(filename))
     # print "Last modified : %s, last created time: %s" % (mtime, ctime)
     now = datetime.datetime.now()
-    daydelta = datetime.timedelta(days=days)
-    days_ago = now - daydelta
+    #只进行时间小时比较
+    daydelta = datetime.timedelta(hours=hours)
 
-    if datetime.datetime.fromtimestamp(mtime_s) < days_ago:
+    print "daydelat",daydelta
+    days_ago = now - daydelta
+    print "daysage",days_ago
+    # time.strftime("%Y-%m-%d %H:%M:%S", localTime)
+    print "s",datetime.datetime.fromtimestamp(mtime_s)
+
+    if datetime.datetime.fromtimestamp(mtime_s) <= days_ago:
+        print "sss"
         return True
     else:
         return False
@@ -119,7 +126,7 @@ def cleanLog(filename):
     if os.path.exists(filename):
         try:
             print 'clean log file %s' % filename
-            os.remove(filename)
+            # os.remove(filename)
             remove_info = 'remove file:%s size:%s remove at time:%s;\n' % (filename,fileSize, now)
             remove_log = os.path.join(remove_log_dir, rw_log)
             writeLog(remove_info, remove_log)
