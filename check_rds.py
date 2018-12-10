@@ -10,8 +10,8 @@ from aliyunsdkcore import client
 from aliyunsdkrds.request.v20140815 import DescribeDBInstancesRequest
 import json
 
-ID = 'LTAIL35aDO63llui'
-Secret = '0CqBJ2AgXnGJbEF39ihLEXbrmXyf91'
+ID = 'Li'
+Secret = '1'
 RegionId = 'cn-shenzhen'
 
 
