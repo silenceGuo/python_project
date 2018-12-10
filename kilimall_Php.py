@@ -15,7 +15,7 @@ import json
 reload(sys)
 sys.setdefaultencoding('utf-8')
 serverConf = "standard.conf"  # 部署配置文件路径
-ansibileHostFile = "/etc/ansible/hosts" #ansi
+ansibileHostFile = "/etc/ansible/hosts" #ansible 主机文件
 
 def getOptions():
     parser = OptionParser()
