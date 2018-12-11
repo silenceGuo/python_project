@@ -356,8 +356,8 @@ if __name__ == "__main__":
     bakDir = "/app/bak/"  # 备份上一次的应用目录
     ansibleHostFile = "/data/jks/host/iplist"
 
-    checktime = 2  # 等待时间和检查状态次数
-    keepBakNum = 5  # 备份包保留版本数
+    checktime = 2  # 等待时间和检查状态次数。
+    keepBakNum = 5  # 备份包保留版本数。
 
     init()
     options, args = getOptions()
