@@ -141,10 +141,10 @@ def checkServer(serverName):
 def backWar(serverName):
     # 部署的包
 
-    deployDir = serverNameDict[serverName]["deploydir"]
+    # deployDir = serverNameDict[serverName]["deploydir"]
 
     try:
-        deployWar = serverNameDict[serverName]["deployfile"]
+        deployWar = serverNameDict[serverName]["war"]
         # deployWar = os.path.join(deployDir, deployFile)
     except:
         deployWar = serverNameDict[serverName]["deploydir"]
@@ -216,7 +216,7 @@ def rollBack(serverName,versionId=""):
         # deployRootWar = dirDict["deploydir"]
 
         try:
-            deployRootWar = dirDict["deployfile"]
+            deployRootWar = dirDict["war"]
             # deployRootWar = os.path.join(deployRootWar, deployFile)
         except:
             deployRootWar = dirDict["deploydir"]
@@ -300,7 +300,7 @@ def init():
                    deployDir=/app/project/testgit/war
                    gitUrl=git@10.0.1.131:root/testgit.git
                    deployGroupName=node1
-                   deployFile=/app/project/testgit/war/2.war
+                   war=/app/project/testgit/war/2.war
                     """ % serverConfPath
         sys.exit(2)
     else:
