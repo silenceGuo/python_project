@@ -144,8 +144,8 @@ def backWar(serverName):
     deployDir = serverNameDict[serverName]["deploydir"]
 
     try:
-        deployFile = serverNameDict[serverName]["deployfile"]
-        deployWar = os.path.join(deployDir, deployFile)
+        deployWar = serverNameDict[serverName]["deployfile"]
+        # deployWar = os.path.join(deployDir, deployFile)
     except:
         deployWar = serverNameDict[serverName]["deploydir"]
 
@@ -216,8 +216,8 @@ def rollBack(serverName,versionId=""):
         deployRootWar = dirDict["deploydir"]
 
         try:
-            deployFile = dirDict["deployfile"]
-            deployRootWar = os.path.join(deployRootWar, deployFile)
+            deployRootWar = dirDict["deployfile"]
+            # deployRootWar = os.path.join(deployRootWar, deployFile)
         except:
             deployRootWar = dirDict["deploydir"]
 
@@ -284,26 +284,24 @@ def confCheck(cf, section, option):
 
 def init():
     # 初始化基础目录
-
     # if not os.path.exists(deploymentAppDir):
     #     os.makedirs(deploymentAppDir)
     if not os.path.exists(bakDir):
         os.makedirs(bakDir)
     if not os.path.exists(serverConfPath):
-        print "serverconf is not exists,check serverconf %s "% serverConfPath
+        print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
                    [testgit]
                    deployDir=/app/project/testgit/war
                    gitUrl=git@10.0.1.131:root/testgit.git
                    deployGroupName=node1
-                   deployFile=2.war
+                   deployFile=/app/project/testgit/war/2.war
                     """ % serverConfPath
         sys.exit(2)
     else:
         # 读配置文件 服务配置
         global serverNameDict
         serverNameDict = readConf(serverConfPath)
-
 
 def main(action, serverName, version):
     # action = action.lower()
@@ -352,13 +350,8 @@ def getOptions():
 
 if __name__ == "__main__":
     serverConfPath = "standard.conf"  # 部署配置文件
-    deploymentAppDir = "/app/project/"  # 部署工程目录存放tomcat
     bakDir = "/app/bak/"  # 备份上一次的应用目录
-    ansibleHostFile = "/data/jks/host/iplist"
-
-    checktime = 2  # 等待时间和检查状态次数。
     keepBakNum = 5  # 备份包保留版本数。
-
     init()
     options, args = getOptions()
     action = options.action
