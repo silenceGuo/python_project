@@ -57,7 +57,7 @@ def execSh(cmd):
 def checkMaster():
     # 获取项目分支是否为master
     cmd = "git branch"
-    stdout,stderr = execSh(cmd)
+    stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
     if "* master" in branch_list:
