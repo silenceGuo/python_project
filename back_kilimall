@@ -144,7 +144,7 @@ def backWar(serverName):
     # deployDir = serverNameDict[serverName]["deploydir"]
 
     try:
-        deployWar = serverNameDict[serverName]["war"]
+        deployWar = serverNameDict[serverName]["deployFile"]
         # deployWar = os.path.join(deployDir, deployFile)
     except:
         deployWar = serverNameDict[serverName]["deploydir"]
@@ -216,7 +216,7 @@ def rollBack(serverName,versionId=""):
         # deployRootWar = dirDict["deploydir"]
 
         try:
-            deployRootWar = dirDict["war"]
+            deployRootWar = dirDict["deployFile"]
             # deployRootWar = os.path.join(deployRootWar, deployFile)
         except:
             deployRootWar = dirDict["deploydir"]
@@ -234,7 +234,7 @@ def rollBack(serverName,versionId=""):
             os.remove(deployRootWar)
             copyFile(bakdeployWar, deployRootWar)
         chown_cmd = "sudo chown ec2-user.ec2-user -R %s" % deployRootWar
-        stdout,stderr = execSh(chown_cmd)
+        stdout, stderr = execSh(chown_cmd)
         if stdout:
             print "stdout：%s" % stdout
         if stderr:
@@ -297,10 +297,10 @@ def init():
         print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
                    [testgit]
-                   deployDir=/app/project/testgit/war
+                   deployDir=/app/project/testgit/war/
                    gitUrl=git@10.0.1.131:root/testgit.git
                    deployGroupName=node1
-                   war=/app/project/testgit/war/2.war
+                   deployFile=/app/project/testgit/war/2.war
                     """ % serverConfPath
         sys.exit(2)
     else:
