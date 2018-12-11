@@ -213,7 +213,7 @@ def rollBack(serverName,versionId=""):
         bakdeployWar = os.path.join(bakDir,serverName,"%s.%s") % (serverName,versionId)
         # os.path.join(bakDir,serverName)
 
-        deployRootWar = dirDict["deploydir"]
+        # deployRootWar = dirDict["deploydir"]
 
         try:
             deployRootWar = dirDict["deployfile"]
@@ -233,7 +233,12 @@ def rollBack(serverName,versionId=""):
         elif os.path.isfile(bakdeployWar):
             os.remove(deployRootWar)
             copyFile(bakdeployWar, deployRootWar)
-
+        chown_cmd = "sudo chown ec2-user.ec2-user -R %s" % deployRootWar
+        stdout,stderr = execSh(chown_cmd)
+        if stdout:
+            print "stdout：%s" % stdout
+        if stderr:
+            print "stederr： %s" % stderr
         if os.path.exists(deployRootWar):
             print "RollBack Sucess,update serverName:%s" % serverName
             print "Rollback Version:%s " % versionId
@@ -357,9 +362,8 @@ if __name__ == "__main__":
     action = options.action
     version = options.versionId
     serverName = options.serverName
-
     if not action:
-        print "follow -a action"
+        print "follow -a action[back ,getback,rollback]"
         sys.exit()
     if not serverName:
         print "follow -n servername"
