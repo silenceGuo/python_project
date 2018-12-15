@@ -20,12 +20,10 @@ ansibileHostFile = "/etc/ansible/hosts" #ansible 主机文件
 
 def getOptions():
     parser = OptionParser()
-
     parser.add_option("-n", "--serverName", action="store",
                       dest="serverName",
                       default=False,
                       help="serverName to do")
-
     parser.add_option("-a", "--action", action="store",
                       dest="action",
                       default=False,
@@ -76,7 +74,6 @@ def initProject(serverName):
     print "master install:%s" % serverName
     deployDir = projectDict[serverName]["deploydir"]
     gitUrl = projectDict[serverName]["giturl"]
-
     if not os.path.exists(deployDir):
        os.mkdir(deployDir)
     os.chdir(deployDir)
@@ -128,7 +125,6 @@ def ReturnExec(cmd):
         print "err:%s" % stderr
 
 def readStdin():
-
     input_str = raw_input("确认执行操作：Y/N")
     return input_str.strip().lower()
 
@@ -229,7 +225,6 @@ def readConf(serverConf):
         #print 'serverName:%s' % serverName
         for optins in cf.options(serverName):
             # 取服务名下的对应的配置和参数
-
             if not confCheck(cf, serverName, optins):
                 sys.exit()
             value = cf.get(serverName, optins)
@@ -287,7 +282,7 @@ def ansibileSyncDir(ip,sourceDir,destDir):
     """
     ReturnExec(SyncDir)
 
-# 更新远程节点的代码 使用php
+# 更新远程节点的代码适用php
 def ansibleUpdateGit(serverName):
     print "更新主代码git代码"
     nodeName = projectDict[serverName]["deploynodename"]
@@ -409,6 +404,18 @@ def startServer(serverName):
             print "启动服务： %s 失败" % serverName
             return False
 
+# jar 文件mavn构建
+def build_maven(serverName):
+    serverNameDict = projectDict[serverName]
+    deployDir = serverNameDict["deploydir"]
+     # = serverNameDict["deploydir"]
+    cmd = "mvn "
+    stdout ,stderr = execSh(cmd)
+    if stdout:
+        print stdout
+    if stderr:
+        print stderr
+
 
 #判断目录是否为空
 def dir_is_null(path):
@@ -422,10 +429,9 @@ def dir_is_null(path):
 def main(serverName,branchName,action):
 
     if action == "init":
-        # 主服务项目部署
+        # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
         if serverName == "all":
             for serName, dict_sub in projectDict.iteritems():
-
                 initProject(serName)
         else:
             initProject(serverName)
@@ -443,7 +449,7 @@ def main(serverName,branchName,action):
              installServerName(serverName)
 
     elif action == "deploy":
-        # 部署新的代码至源端机器
+        # 部署新的代码至源端机器 copy jar包至目标节点
         if serverName == "all":
             for serName, dict_sub in projectDict.iteritems():
                 ansibileCopyFile(serName)
@@ -452,8 +458,6 @@ def main(serverName,branchName,action):
 
     elif action == "restart":
         stopServer(serverName)
-
-        pass
     else:
         print "action just [init ,install ,merge,deploy,restart]"
         sys.exit()
@@ -462,9 +466,10 @@ def main(serverName,branchName,action):
 if __name__ == "__main__":
     # 未完成 启动 调试。 备份 回滚 历史版本处理（可以使用back.py)
     projectDict = readConf("standard.conf")
-
+    serverNameList = []
+    for serverName,serverNameDict in projectDict.items():
+        serverNameList.append(serverName)
     ansibleHostDict = readConfAnsible(ansibileHostFile)
-
     options, args = getOptions()
     action = options.action
     # version = options.versionId
@@ -474,7 +479,7 @@ if __name__ == "__main__":
         print "参数执行操作 -a action [install,init,deploy,start,stop,restart]"
         sys.exit()
     elif not serverName:
-        print "参数服务名 -n servername []"
+        print "参数服务名 -n servername %s" % ser
         sys.exit()
     else:
         pass
