@@ -210,7 +210,8 @@ def confCheck(cf, section, option):
 
 #读取配置文件
 def readConf(serverConf):
-
+    if not fileExists(serverConf):
+        sys.exit()
     cf = ConfigParser.ConfigParser()
     try:
         cf.read(serverConf)
@@ -235,6 +236,8 @@ def readConf(serverConf):
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
+    if not fileExists(file):
+        sys.exit()
     cf = ConfigParser.ConfigParser(allow_no_value=True)
     cf.read(file)
     try:
@@ -470,12 +473,20 @@ def printServerName(projectDict):
     #返回服务名列表，可以在后期处理进行排序，考虑服务启动的顺序
     return serverNameList
 
+#检查文件是否存在
+def fileExists(filePath):
+    if not os.path.exists(filePath):
+        print "文件：%s 不存在，请检查" % filePath
+        return False
+    return True
+
 
 if __name__ == "__main__":
     # 未完成 启动 调试。 备份 回滚 历史版本处理（可以使用back.py)
 
     projectDict = readConf(serverConf)
     ansibleHostDict = readConfAnsible(ansibileHostFile)
+
     options, args = getOptions()
     action = options.action
     # version = options.versionId
