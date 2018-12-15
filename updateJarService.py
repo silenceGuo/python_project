@@ -405,7 +405,7 @@ def startServer(serverName):
             return False
 
 # jar 文件mavn构建
-def build_maven(serverName):
+def buildMaven(serverName):
     serverNameDict = projectDict[serverName]
     deployDir = serverNameDict["deploydir"]
      # = serverNameDict["deploydir"]
@@ -415,7 +415,6 @@ def build_maven(serverName):
         print stdout
     if stderr:
         print stderr
-
 
 #判断目录是否为空
 def dir_is_null(path):
@@ -462,13 +461,20 @@ def main(serverName,branchName,action):
         print "action just [init ,install ,merge,deploy,restart]"
         sys.exit()
 
+# 输出服务配置文件中的服务名
+def printServerName(projectDict):
+    serverNameList = []
+    for serverName, serverNameDict in projectDict.items():
+        print "可执行为服务名：%s" %  serverName
+        serverNameList.append(serverName)
+    #返回服务名列表，可以在后期处理进行排序，考虑服务启动的顺序
+    return serverNameList
+
 
 if __name__ == "__main__":
     # 未完成 启动 调试。 备份 回滚 历史版本处理（可以使用back.py)
-    projectDict = readConf("standard.conf")
-    serverNameList = []
-    for serverName,serverNameDict in projectDict.items():
-        serverNameList.append(serverName)
+
+    projectDict = readConf(serverConf)
     ansibleHostDict = readConfAnsible(ansibileHostFile)
     options, args = getOptions()
     action = options.action
@@ -479,11 +485,14 @@ if __name__ == "__main__":
         print "参数执行操作 -a action [install,init,deploy,start,stop,restart]"
         sys.exit()
     elif not serverName:
-        print "参数服务名 -n servername %s" % ser
+        print "参数服务名 -n servername "
+        printServerName(projectDict)
         sys.exit()
     else:
-        pass
-    if not projectDict.has_key(serverName):
-        print "没有服务：%s" % serverName
-        sys.exit()
-    main(serverName, branchName, action)
+        # print "其他错误！"
+        # sys.exit()
+        if not projectDict.has_key(serverName):
+            print "没有服务名：%s" % serverName
+            printServerName(projectDict)
+            sys.exit()
+        main(serverName, branchName, action)

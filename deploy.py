@@ -10,6 +10,8 @@ import psutil
 import platform
 import signal
 
+import os
+
 def getPid(serverName):
     # python 方式获取 服务名称或者进程名字的pid
     for pid in psutil.pids():
@@ -26,10 +28,10 @@ def kill(pid):
        # a = os.kill(pid, signal.SIGKILL)
         a = os.kill(pid,9)
         #a = os.kill(pid, signal.9) #　与上等效
-        print '已杀死pid为%s的进程,　返回值是:%s' % (pid, a)
+        print'已杀死pid为%s的进程,　返回值是:%s' % (pid, a)
     except OSError, e:
-        print '没有如此进程!!!'
-        sys.exit()
+       print '没有如此进程!!!'
+       sys.exit()
 
 def TestPlatform():
     print ("----------Operation System--------------------------")
@@ -101,21 +103,21 @@ def test():
                 sys.exit(1)
             else:
                 pass
-            tot = 0
-
 import sys
-log_file = "D:\\tag.txt"
-loginfo = sys.argv[1]
+
 def writeLog(log_file, loginfo):
     # 写日志函数
     if not os.path.exists(log_file):
-        print log_file
+        tot = 0
+        print "%s" % log_file
         with open(log_file, 'w+') as fd:
             fd.write(loginfo)
     else:
         with open(log_file, 'w+')as fd:
             fd.write(loginfo)
 if __name__ == "__main__":
+    log_file = "D:\\tag.txt"
+    loginfo = sys.argv[1]
     # import multiprocessing
     # for i in xrange(2):
     #    p = multiprocessing.Process(target=test)  # 进程实现
