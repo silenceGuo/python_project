@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import ConfigParser
+import back_kilimall
 from optparse import OptionParser
 from subprocess import PIPE,Popen
 import json
@@ -259,8 +260,9 @@ def readConfAnsible(file):
 
 # 本地安装项目初始化
 def installServerName(serverName):
-    deployDir = projectDict[serverName]["deploydir"]
-
+    serverNameDict = projectDict[serverName]
+    deployDir = serverNameDict["deploydir"]
+    # print projectDict
     if os.path.exists(deployDir):
         if dir_is_null(deployDir):
             print "%s 安装成功" % serverName
@@ -457,9 +459,14 @@ def main(serverName,branchName,action):
                 ansibileCopyFile(serName)
         else:
             ansibileCopyFile(serverName)
-
     elif action == "restart":
         stopServer(serverName)
+    elif action == "back":
+        # 调用单独的备份脚本
+        back_kilimall.backWar(serverName)
+    elif action == "rollback":
+        back_kilimall.rollBack(serverName)
+
     else:
         print "action just [init ,install ,merge,deploy,restart]"
         sys.exit()
@@ -484,8 +491,9 @@ def fileExists(filePath):
 if __name__ == "__main__":
     # 未完成 启动 调试。 备份 回滚 历史版本处理（可以使用back.py)
 
+    # back_kilimall.backWA
     projectDict = readConf(serverConf)
-    ansibleHostDict = readConfAnsible(ansibileHostFile)
+    # ansibleHostDict = readConfAnsible(ansibileHostFile)
 
     options, args = getOptions()
     action = options.action
@@ -502,8 +510,12 @@ if __name__ == "__main__":
     else:
         # print "其他错误！"
         # sys.exit()
-        if not projectDict.has_key(serverName):
-            print "没有服务名：%s" % serverName
-            printServerName(projectDict)
-            sys.exit()
-        main(serverName, branchName, action)
+        if serverName == "all":
+            for serName,serverNameDict in projectDict.items():
+                main(serName, branchName, action)
+        else:
+            if not projectDict.has_key(serverName):
+                print "没有服务名：%s" % serverName
+                printServerName(projectDict)
+                sys.exit()
+            main(serverName, branchName, action)
