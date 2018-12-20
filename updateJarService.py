@@ -15,9 +15,11 @@ import json
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
-serverConf = "server_liunx.conf"  # 部署配置文件路径
+serverConf = "standard1.conf"  # 部署配置文件路径
 checktime = 3
 ansibileHostFile = "/etc/ansible/hosts" #ansible 主机文件
+#日志输出路径
+logpath = "/logger/"
 
 def getOptions():
     parser = OptionParser()
@@ -43,7 +45,6 @@ def getOptions():
     options, args = parser.parse_args()
     return options, args
 
-
 def execSh(cmd):
     # 执行SH命令
     try:
@@ -57,7 +58,7 @@ def execSh(cmd):
 def checkMaster():
     # 获取项目分支是否为master
     cmd = "git branch"
-    stdout,stderr = execSh(cmd)
+    stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
     if "* master" in branch_list:
@@ -71,7 +72,6 @@ def checkMaster():
 def initProject(serverName):
 
     # 新机器 或者新目录项目部署
-
     print "master install:%s" % serverName
     deployDir = projectDict[serverName]["deploydir"]
     gitUrl = projectDict[serverName]["giturl"]
@@ -149,7 +149,7 @@ def mergeBranch(serverName,branchName):
         sys.exit()
  
     print "取分支"
-    stdout,stderr = execSh(fetch_cmd)
+    stdout, stderr = execSh(fetch_cmd)
     print stdout
 
     if "fatal" in stderr:
@@ -290,27 +290,32 @@ def ansibileSyncDir(ip,sourceDir,destDir):
 # 更新远程节点的代码适用php
 def ansibleUpdateGit(serverName):
     print "更新主代码git代码"
-    nodeName = projectDict[serverName]["deploynodename"]
+    nodeName = projectDict[serverName]["deploygroupname"]
     deployDir = projectDict[serverName]["deploydir"]
     UpdateDir = 'ansible %s -i %s -m shell -a "cd %s;sudo git pull"' % (nodeName, ansibileHostFile, deployDir)
     ReturnExec(UpdateDir)
 
 def ansibileCopyFile(serverName):
     print "发送文件至远程节点 "
-    nodeName = projectDict[serverName]["deploynodename"]
+    nodeName = projectDict[serverName]["deploygroupname"]
     deployDir = projectDict[serverName]["deploydir"]
-    deployFile = projectDict[serverName]["deployfile"]
+    # print deployDir
+    # sys.exit()
+    deployFile = projectDict[serverName]["jar"]
     # deployFile = os.path.join(deployDir,deployFile)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s owner=nobody group=nobody backup=yes"' % (nodeName, ansibileHostFile, deployFile, deployFile)
+    # if ansibleDirIsExists(nodeName)
+    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s owner=nobody group=nobody backup=yes"' % (nodeName, ansibileHostFile, deployFile, deployDir)
     ReturnExec(copyFILE)
 
 
 def ansibileCopyZipFile(serverName):
-    nodeName = projectDict[serverName]["deploynodename"]
+    nodeName = projectDict[serverName]["deploygroupname"]
     deployDir = projectDict[serverName]["deploydir"]
-    deployFile = projectDict[serverName]["deployfile"]
+
+    deployFile = projectDict[serverName]["jar"]
     CopyZipFile = "ansible %s -i %s -m unarchive -a 'src=%s dest=%s copy=yes owner=tomcat group=tomcat backup=yes'" % (nodeName, ansibileHostFile, deployFile, deployDir)
     ReturnExec(CopyZipFile)
+
 
 def ansibleDirIsExists(ip,filepath):
     # 判断远程 文件或者目录是否存在
@@ -341,7 +346,9 @@ def parseAnsibleOut(stdout):
 
 def getPid(serverName):
     deployDir = projectDict[serverName]["deploydir"]
-    cmd = "pgrep -f %s" % deployDir
+    deployjar = projectDict[serverName]["jar"]
+    # cmd = "pgrep -f %s" % deployDir
+    cmd = "pgrep -f %s" % deployjar
     # cmd = "pgrep -f %s/war/" % deployDir
     pid, stderr = execSh(cmd)
     if pid:
@@ -352,8 +359,6 @@ def getPid(serverName):
 def stopServer(serverName):
     # 停止服务 先正常停止，多次检查后 强制杀死！
     deployDir = projectDict[serverName]["deploydir"]
-    # shutdown = os.path.join(deployDir, "bin/shutdown.sh")
-    # cmd = "sudo su - tomcat -c '/bin/bash %s'" % shutdown
 
     pid = getPid(serverName)
 
@@ -387,19 +392,31 @@ def startServer(serverName):
     serverNameDict = projectDict[serverName]
     jar = serverNameDict["jar"]
     deploydir = serverNameDict["deploydir"]
-    conf = serverNameDict["conf"]
-    logpath = os.path.join(deploydir,serverName,)
+    # conf = serverNameDict["conf"]
+    try:
+         xms = serverNameDict["xms"]
+         xmx = serverNameDict["xmx"]
+    except:
+        print "配置文件中为配置java内存参数参数默认512m "
+        xms = "512m"
+        xmx = "512m"
+
+    serverlogpath = os.path.join(logpath, serverName)
     if getPid(serverName):
         print "%s 已经启动,请先停止！ " % serverName
         return False
     else:
         print "启动服务：%s" % serverName
-        cmd = """
-        nohup  java -Xms256m -Xmx256m -jar  -Dspring.config.location=%s,classpath:/application-dev.properties %s >%s.out 2>&1 & 
-        """ % (jar, conf, logpath)
+        cmd = "/usr/bin/nohup /app/jdk1.8.0_121/bin/java -Xms%s -Xmx%s -jar %s >%s.out 2>&1 &" % (xms, xmx, jar,serverlogpath)
         print cmd
+        stdout ,stderr = execSh(cmd)
+        if stdout:
+            print "stdout:%s" % stdout
+        if stderr:
+            print "ster:%s" % stderr
         for i in xrange(1, checktime+1):
             print "循环检查服务启动状态：%s 次" % i
+            time.sleep(checktime)
             if getPid(serverName):
                 pass
         if getPid(serverName):
@@ -413,9 +430,11 @@ def startServer(serverName):
 def buildMaven(serverName):
     serverNameDict = projectDict[serverName]
     deployDir = serverNameDict["deploydir"]
+    os.chdir(deployDir)
+    print os.getcwd()
      # = serverNameDict["deploydir"]
-    cmd = "mvn "
-    stdout ,stderr = execSh(cmd)
+    cmd = "/app/apache-maven-3.5.0/bin/mvn clean && /app/apache-maven-3.5.0/bin/mvn install -Dmaven.test.skip=true"
+    stdout,stderr = execSh(cmd)
     if stdout:
         print stdout
     if stderr:
@@ -454,19 +473,62 @@ def main(serverName,branchName,action):
 
     elif action == "deploy":
         # 部署新的代码至源端机器 copy jar包至目标节点
+        print "同步python脚本"
+        pyfile1= "/root/app/py/updateJarService.py"
+        pyfile = "/data/init/updateJarService.py"
+        nodeName= "all"
+        copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s owner=nobody group=nobody backup=yes mode=744"' % (nodeName, ansibileHostFile, pyfile1, pyfile)
+        ReturnExec(copyFILE)
+
         if serverName == "all":
             for serName, dict_sub in projectDict.iteritems():
                 ansibileCopyFile(serName)
+                remoteExec(serName, action="restart")
         else:
             ansibileCopyFile(serverName)
+            remoteExec(serverName, action)
     elif action == "restart":
-        stopServer(serverName)
+        if serverName == "all":
+            for serName, dict_sub in projectDict.iteritems():
+                stopServer(serName)
+                startServer(serName)
+        else:
+            stopServer(serverName)
+            startServer(serverName)
+
+    elif action == "start":
+        if serverName == "all":
+            for serName, dict_sub in projectDict.iteritems():
+                startServer(serName)
+        else:
+            startServer(serverName)
+
+    elif action == "stop":
+        if serverName == "all":
+            for serName, dict_sub in projectDict.iteritems():
+                stopServer(serName)
+        else:
+            stopServer(serverName)
+
     elif action == "back":
         # 调用单独的备份脚本
-        back_kilimall.backWar(serverName)
-    elif action == "rollback":
-        back_kilimall.rollBack(serverName)
+        if serverName == "all":
+            for serName, dict_sub in projectDict.iteritems():
+                back_kilimall.backWar(serName)
+        else:
+            back_kilimall.backWar(serverName)
 
+    elif action == "rollback":
+        if serverName == "all":
+            for serName, dict_sub in projectDict.iteritems():
+                back_kilimall.rollBack(serName)
+        else:
+            back_kilimall.rollBack(serverName)
+
+    elif action == "build":
+        buildMaven(serverName)
+    elif action == "build":
+        buildMaven(serverName)
     else:
         print "action just [init ,install ,merge,deploy,restart]"
         sys.exit()
@@ -474,8 +536,9 @@ def main(serverName,branchName,action):
 # 输出服务配置文件中的服务名
 def printServerName(projectDict):
     serverNameList = []
+    # print projectDict
     for serverName, serverNameDict in projectDict.items():
-        print "可执行为服务名：%s" %  serverName
+        print "可执行服务名：%s" %  serverName
         serverNameList.append(serverName)
     #返回服务名列表，可以在后期处理进行排序，考虑服务启动的顺序
     return serverNameList
@@ -487,10 +550,69 @@ def fileExists(filePath):
         return False
     return True
 
+def remoteExec(servername,action):
+    serverNameDict = projectDict[serverName]
+    # jar = serverNameDict["jar"]
+    deploydir = serverNameDict["deploydir"]
+    deploydir = "/data/init/"
+
+    nodeName = projectDict[serverName]["deploygroupname"]
+
+    # print deployDir
+    # sys.exit()
+    deployFile = projectDict[serverName]["jar"]
+
+    if action == 'back':
+        cmd = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -a back' --sudo ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout,stderr = execSh(cmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+    elif action == 'rollback':
+        cmd = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -a rollback' --sudo ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout, stderr = execSh(cmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+    elif action == 'getback':
+        cmd = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -a getback' ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout, stderr = execSh(cmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+    elif action == 'deploy':
+        cmd_back = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -a back' --sudo ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout, stderr = execSh(cmd_back)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+        stop_cmd = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -g %s -a stop' ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout, stderr = execSh(stop_cmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+        start_cmd = ''' ansible %s -i %s -m shell -a 'cd %s;sudo ./updateJarService.py -n %s -g %s -a start' ''' % (nodeName, ansibileHostFile, deploydir, servername)
+        stdout, stderr = execSh(start_cmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+    else:
+        pass
+
+def init():
+    if not os.path.exists(logpath):
+        print "初始化日志目录"
+        os.makedirs(logpath)
 
 if __name__ == "__main__":
     # 未完成 启动 调试。 备份 回滚 历史版本处理（可以使用back.py)
-
+    init()
     # back_kilimall.backWA
     projectDict = readConf(serverConf)
     # ansibleHostDict = readConfAnsible(ansibileHostFile)
@@ -511,7 +633,7 @@ if __name__ == "__main__":
         # print "其他错误！"
         # sys.exit()
         if serverName == "all":
-            for serName,serverNameDict in projectDict.items():
+            for serName, serverNameDict in projectDict.items():
                 main(serName, branchName, action)
         else:
             if not projectDict.has_key(serverName):
