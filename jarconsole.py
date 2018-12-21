@@ -18,34 +18,11 @@ serverConf = "standard1.conf"  # 部署配置文件路径
 checktime = 3
 ansibileHostFile = "/etc/ansible/hosts" #ansible 主机文件
 maven_home = "/app/apache-maven-3.5.0/bin/mvn"
-
+# 定义源端python脚本路径 和执行花鸟卷
+python_dir = "/python-project/updateJarService.py"
+python_home = "/usr/bin/python"
 #日志输出路径
 logpath = "/logger/"
-
-
-def getOptions():
-    parser = OptionParser()
-    parser.add_option("-n", "--serverName", action="store",
-                      dest="serverName",
-                      default=False,
-                      help="serverName to do")
-    parser.add_option("-a", "--action", action="store",
-                      dest="action",
-                      default=False,
-                      help="action -a [checkout,pull,push,master,install]")
-    #
-    # parser.add_option("-v", "--versionId", action="store",
-    #                   dest="versionId",
-    #                   default=False,
-    #                   help="-v versionId")
-
-    parser.add_option("-b", "--branchName", action="store",
-                      dest="branchName",
-                      default=False,
-                      help="-b branchName")
-
-    options, args = parser.parse_args()
-    return options, args
 
 def ReturnExec(cmd):
     stdout, stderr = execSh(cmd)
@@ -66,25 +43,90 @@ def execSh(cmd):
         sys.exit()
     return p.communicate()
 
-def deploy_node(servername):
+def execAnsible(serverName,action):
+    serverNameDict = projectDict[serverName]
+    print serverName
+    print serverNameDict
+    # deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
 
-    cmd = ""
-    pass
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s'" % (
+    deploynode, ansibileHostFile, python_home, python_dir,action, serverName)
+    print cmd
+    ReturnExec(cmd)
 
-def start_node(servername):
-    pass
+def delpoy_install(serverName):
 
-def stop_node(servername):
-    pass
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
 
-def back_node(servername):
-    pass
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a install -n %s'" % (deploynode,ansibileHostFile,python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
+    # stdout stder =
 
-def getback_node(servername):
-    pass
+    # execSh(cmd)
 
-def rollbakc_node(servername):
-    pass
+def deploy_node(serverName):
+    print "发送文件至远程节点 "
+    nodeName = projectDict[serverName]["deploygroupname"]
+    deployDir = projectDict[serverName]["deploydir"]
+    # print deployDir
+    # sys.exit()
+    deployFile = projectDict[serverName]["jar"]
+    # deployFile = os.path.join(deployDir,deployFile)
+    # if ansibleDirIsExists(nodeName)
+    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (nodeName, ansibileHostFile, deployFile, deployDir)
+    ReturnExec(copyFILE)
+
+def start_node(serverName):
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a start -n %s'" % (
+    deploynode, ansibileHostFile, python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
+
+def stop_node(serverName):
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a stop -n %s'" % (
+        deploynode, ansibileHostFile, python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
+
+def back_node(serverName):
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
+
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a back -n %s'" % (
+        deploynode, ansibileHostFile, python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
+
+def getback_node(serverName):
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
+
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a getback -n %s'" % (
+        deploynode, ansibileHostFile, python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
+
+def rollbakc_node(serverName):
+    serverNameDict = projectDict[serverName]
+    deploydir = serverNameDict["deploydir"]
+    deploynode = serverNameDict["deploygroupname"]
+
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a rollback -n %s'" % (
+        deploynode, ansibileHostFile, python_home, python_dir, serverName)
+    print cmd
+    ReturnExec(cmd)
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
@@ -179,17 +221,7 @@ def ansibleUpdateGit(serverName):
     UpdateDir = 'ansible %s -i %s -m shell -a "cd %s;sudo git pull"' % (nodeName, ansibileHostFile, deployDir)
     ReturnExec(UpdateDir)
 
-def ansibileCopyFile(serverName):
-    print "发送文件至远程节点 "
-    nodeName = projectDict[serverName]["deploygroupname"]
-    deployDir = projectDict[serverName]["deploydir"]
-    # print deployDir
-    # sys.exit()
-    deployFile = projectDict[serverName]["jar"]
-    # deployFile = os.path.join(deployDir,deployFile)
-    # if ansibleDirIsExists(nodeName)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (nodeName, ansibileHostFile, deployFile, deployDir)
-    ReturnExec(copyFILE)
+
 
 
 def ansibileCopyZipFile(serverName):
@@ -228,86 +260,36 @@ def main(serverName,branchName,action):
 
     if action == "init":
         # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                initProject(serName)
-        else:
-            initProject(serverName)
-
+        updateJarService.initProject(serverName)
     elif action == "merge":
         # 主服务项目合并分支至master
-        mergeBranch(serverName, branchName)
-
+        updateJarService.mergeBranch(serverName, branchName)
     elif action == "install":
         # 用于远端机器部署项目
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                installServerName(serName)
-        else:
-             installServerName(serverName)
+        execAnsible(serverName, action)
     elif action == "build":
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                buildMaven(serName)
-        else:
-            buildMaven(serverName)
-
+        buildMaven(serverName)
+    elif action == "deploy":
+        execAnsible(serverName, "back")
+        # 部署新包至目标节点
+        deploy_node(serverName)
+        execAnsible(serverName, "stop")
+        execAnsible(serverName, "start")
     elif action == "restart":
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                stopServer(serName)
-                startServer(serName)
-        else:
-            stopServer(serverName)
-            startServer(serverName)
-
+        execAnsible(serverName, action)
     elif action == "start":
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                startServer(serName)
-        else:
-            startServer(serverName)
-
+        execAnsible(serverName, action)
     elif action == "stop":
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                stopServer(serName)
-        else:
-            stopServer(serverName)
-
+        execAnsible(serverName, action)
     elif action == "back":
-        # 调用单独的备份脚本
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                back.backWar(serName)
-        else:
-            back.backWar(serverName)
+        execAnsible(serverName, action)
     elif action == "getback":
-        # 调用单独的备份脚本
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                # versionlist = back.getVersion(serName)
-                versionlist = back.getVersion(serverName)
-                if not versionlist:
-                    print "%s not back" % serName
-                else:
-                    print "%s has back version:%s" % (serName, versionlist)
-        else:
-            versionlist = back.getVersion(serverName)
-            if not versionlist:
-                print "%s not back" % serverName
-            else:
-                print "%s has back version:%s" % (serverName, versionlist)
+        execAnsible(serverName, action)
     elif action == "rollback":
-        if serverName == "all":
-            for serName, dict_sub in projectDict.iteritems():
-                back.rollBack(serName)
-        else:
-            back.rollBack(serverName)
+        execAnsible(serverName, action)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
-
 def remoteExec(servername,action):
     serverNameDict = projectDict[serverName]
     # jar = serverNameDict["jar"]
@@ -363,11 +345,11 @@ def remoteExec(servername,action):
     else:
         pass
 
+
+
 if __name__ == "__main__":
     # 备份 回滚 历史版本处理（可以使用调用back.py) back.py 可以在目标服务器单独执行
     projectDict = updateJarService.readConf(serverConf)
-
-
     options, args = updateJarService.getOptions()
     action = options.action
     # version = options.versionId
@@ -382,11 +364,16 @@ if __name__ == "__main__":
         sys.exit()
     else:
         # print "其他错误！"
-        # sys.exit()
-
+        startlist = projectDict["startServerList"]
+        print startlist
+        sys.exit()
         if serverName == "all":
-            for serName, serverNameDict in projectDict.items():
+            for serName in startlist:
                 main(serName, branchName, action)
+
+        # if serverName == "all":
+        #     for serName, serverNameDict in projectDict.items():
+        #         main(serName, branchName, action)
         else:
             if not projectDict.has_key(serverName):
                 print "没有服务名：%s" % serverName

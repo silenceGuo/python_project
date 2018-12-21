@@ -17,7 +17,7 @@ import zipfile
 import time
 import ConfigParser
 
-serverConfPath = "standard1.conf"  # 部署配置文件
+serverConf = "/python-project/standard1.conf"  # 部署配置文件
 bakDir = "/app/bak/"  # 备份上一次的应用目录
 # bakDir = "D:\\bat"  # 备份上一次的应用目录
 keepBakNum = 5  # 备份包保留版本数。
@@ -155,7 +155,7 @@ def backWar(serverName):
     # 部署的包
     init()
     # deployDir = serverNameDict[serverName]["deploydir"]
-
+    # print projectDict
     try:
         deployWar = projectDict[serverName]["deployFile"]
         # deployWar = os.path.join(deployDir, deployFile)
@@ -310,7 +310,7 @@ def init():
     #     os.makedirs(deploymentAppDir)
     if not os.path.exists(bakDir):
         os.makedirs(bakDir)
-    if not os.path.exists(serverConfPath):
+    if not os.path.exists(serverConf):
         print "serverconf is not exists,check serverconf %s " % serverConfPath
         print """ %s like this:
                    [testgit]
@@ -318,12 +318,12 @@ def init():
                    gitUrl=git@10.0.1.131:root/testgit.git
                    deployGroupName=node1
                    deployFile=/app/project/testgit/war/2.war
-                    """ % serverConfPath
+                    """ % serverConf
         sys.exit(2)
     else:
         # 读配置文件 服务配置
         global projectDict
-        projectDict = readConf(serverConfPath)
+        projectDict = readConf(serverConf)
 
 def main(action, serverName, version):
     # action = action.lower()
