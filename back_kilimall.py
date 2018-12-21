@@ -17,9 +17,9 @@ import zipfile
 import time
 import ConfigParser
 
-serverConfPath = "server_liunx.conf"  # 部署配置文件
-# bakDir = "/app/bak/"  # 备份上一次的应用目录
-bakDir = "D:\\bat"  # 备份上一次的应用目录
+serverConfPath = "standard1.conf"  # 部署配置文件
+bakDir = "/app/bak/"  # 备份上一次的应用目录
+# bakDir = "D:\\bat"  # 备份上一次的应用目录
 keepBakNum = 5  # 备份包保留版本数。
 
 """
@@ -250,12 +250,12 @@ def rollBack(serverName,versionId=""):
         elif os.path.isfile(bakdeployWar):
             os.remove(deployRootWar)
             copyFile(bakdeployWar, deployRootWar)
-        chown_cmd = "sudo chown ec2-user.ec2-user -R %s" % deployRootWar
-        stdout, stderr = execSh(chown_cmd)
-        if stdout:
-            print "stdout：%s" % stdout
-        if stderr:
-            print "stederr： %s" % stderr
+        # chown_cmd = "sudo chown ec2-user.ec2-user -R %s" % deployRootWar
+        # stdout, stderr = execSh(chown_cmd)
+        # if stdout:
+        #     print "stdout：%s" % stdout
+        # if stderr:
+        #     print "stederr： %s" % stderr
         if os.path.exists(deployRootWar):
             print "RollBack Sucess,update serverName:%s" % serverName
             print "Rollback Version:%s " % versionId
@@ -386,10 +386,10 @@ def printServerName(projectDict):
     #返回服务名列表，可以在后期处理进行排序，考虑服务启动的顺序
     return serverNameList
 if __name__ == "__main__":
-    serverConfPath = "server_liunx.conf"  # 部署配置文件
+    # serverConfPath = "standard1.conf"  # 部署配置文件
     # bakDir = "/app/bak/"  # 备份上一次的应用目录
-    bakDir = "D:\\bat"  # 备份上一次的应用目录
-    keepBakNum = 5  # 备份包保留版本数。
+    # # bakDir = "D:\\bat"  # 备份上一次的应用目录
+    # keepBakNum = 5  # 备份包保留版本数。
     init()
     options, args = getOptions()
     action = options.action
