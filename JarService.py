@@ -79,6 +79,11 @@ def getOptions():
                       dest="branchName",
                       default=False,
                       help="-b branchName")
+    # jar 服务启动区分环境 读取的配置不一样
+    parser.add_option("-e", "--envName", action="store",
+                      dest="envName",
+                      default=False,
+                      help="-e envName")
 
     options, args = parser.parse_args()
     return options, args
@@ -339,6 +344,7 @@ def startServer(serverName):
 
     serverNameDict = projectDict[serverName]
     deploydir = serverNameDict["deploydir"]
+    # deploydir = serverNameDict["deploydir"]
 
     jar = serverNameDict["jar"]
     jarName = jar.split("/")[-1]
@@ -362,9 +368,11 @@ def startServer(serverName):
         return False
     else:
         print "启动服务：%s" % serverName
-        cmd = "%s %s -Xms%s -Xmx%s -jar %s >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
+        cmd = "%s %s -Xms%s -Xmx%s -jar %s --spring.profiles.active=%s >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,envName,serverlogpath)
+        # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
         print cmd
-        stdout,stderr = execSh(cmd)
+        # sys.exit()
+        stdout, stderr = execSh(cmd)
         if stdout:
             print "stdout:%s" % stdout
         if stderr:
@@ -585,7 +593,8 @@ def rollBack(serverName,versionId=""):
             # os.removedirs(deployRootWar)
             print "clean history file: %s " % deployRootWar
         if os.path.isdir(bakdeployWar):
-            shutil.rmtree(deployRootWar)
+            if os.path.exists(deployRootWar):
+                shutil.rmtree(deployRootWar)
             copyDir(bakdeployWar, deployRootWar)
         elif os.path.isfile(bakdeployWar):
             os.remove(deployRootWar)
@@ -624,11 +633,9 @@ def main(serverName,branchName,action):
     elif action == "install":
         # 用于远端机器部署项目
         installServerName(serverName)
-
     elif action == "restart":
         stopServer(serverName)
         startServer(serverName)
-
     elif action == "start":
         startServer(serverName)
     elif action == "stop":
@@ -642,7 +649,9 @@ def main(serverName,branchName,action):
         else:
              print "%s has back version:%s" % (serverName, versionlist)
     elif action == "rollback":
+        stopServer(serverName)
         rollBack(serverName)
+        startServer(serverName)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
@@ -664,9 +673,8 @@ def fileExists(filePath):
         return False
     return True
 
-
 def init(serverconf):
-    if  os.path.exists(serverconf):
+    if os.path.exists(serverconf):
         confDict = readConf(serverconf)
         return confDict
     else:
@@ -675,27 +683,30 @@ def init(serverconf):
         sys.exit()
 
 if __name__ == "__main__":
-    # 备份 回滚 历史版本处理（可以使用调用back.py)
-    serverconf = "server.conf"
+
+    serverconf = "/python-project/server.conf"
+    # print os.getcwd()
+    # sys.exit()
     confDict = init(serverconf)["conf"]
     options, args = getOptions()
     action = options.action
     # version = options.versionId
     serverName = options.serverName
     branchName = options.branchName
+    envName = options.envName
     try:
         jarConf = confDict["jar_conf"]
-        global  bakDir, bakNum , checkTime,logsPath,mvn, java, nohup
+        global bakDir, bakNum, checkTime, logsPath, mvn, java, nohup
         bakDir = confDict["bak_dir"]
-        bakNum = confDict["bak_num"]
-        checkTime = confDict["check_time"]
+        bakNum = int(confDict["bak_num"])
+        checkTime = int(confDict["check_time"])
         logsPath = confDict["logs_path"]
         mvn = confDict["mvn"]
         java = confDict["java"]
         nohup = confDict["nohup"]
         # node = confDict["node"]
     except Exception,e:
-        print e
+        print "%s 错误" % e
         sys.exit()
     if not os.path.exists(logsPath):
         os.makedirs(logsPath)
@@ -712,9 +723,16 @@ if __name__ == "__main__":
         sys.exit()
     elif not serverName:
         print "参数服务名 -n servername "
-        printServerName( projectDict)
+        printServerName(projectDict)
         sys.exit()
+
     else:
+        if action == "start" or action == "restart" or action == "rollback":
+            if not envName:
+                print "参数执行操作 -e envName [dev,test,pro]"
+                sys.exit()
+
+        print "ll"
         if serverName == "all":
             # 进行升序排列
             serverlist = sorted(projectDict.keys())

@@ -35,13 +35,12 @@ def execSh(cmd):
 
 def execAnsible(serverName,action):
     serverNameDict = projectDict[serverName]
-    print serverName
-    print serverNameDict
+    print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
     deploynode = serverNameDict["deploygroupname"]
 
-    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s'" % (
-        deploynode, ansibleHost, python, remote_py, action, serverName)
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
+        deploynode, ansibleHost, python, remote_py, action, serverName, envName)
     print cmd
     ReturnExec(cmd)
 
@@ -49,12 +48,14 @@ def deploy_node(serverName):
     print "发送文件至远程节点 "
     nodeName = projectDict[serverName]["deploygroupname"]
     deployDir = projectDict[serverName]["deploydir"]
+    buildDir = projectDict[serverName]["builddir"]
     # print deployDir
     # sys.exit()
     deployFile = projectDict[serverName]["jar"]
+
     # deployFile = os.path.join(deployDir,deployFile)
     # if ansibleDirIsExists(nodeName)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (nodeName, ansibileHostFile, deployFile, deployDir)
+    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (nodeName, ansibleHost, deployFile, deployDir)
     ReturnExec(copyFILE)
 
 #读取ansibel host 文件解析
@@ -84,18 +85,22 @@ def readConfAnsible(file):
 def buildMaven(serverName):
 
     serverNameDict = projectDict[serverName]
-    deployDir = serverNameDict["deploydir"]
-    os.chdir(deployDir)
-    print os.getcwd()
+    # deployDir = serverNameDict["deploydir"]
+    buildDir = serverNameDict["builddir"]
+    os.chdir(buildDir)
+    print "workdir : %s" % os.getcwd()
      # = serverNameDict["deploydir"]
     cmd = "%(mvn)s clean && %(mvn)s install -Dmaven.test.skip=true" % {"mvn": mvn}
     print cmd
+    print "构建服务：%s" %serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
     if stdout:
         print stdout
     if stderr:
         print stderr
+
+
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
@@ -198,11 +203,9 @@ def main(serverName,branchName,action):
         execAnsible(serverName, "back")
         # 部署新包至目标节点
         deploy_node(serverName)
-        execAnsible(serverName, "stop")
-        execAnsible(serverName, "start")
+        execAnsible(serverName, action)
     elif action == "restart":
-        execAnsible(serverName, "stop")
-        execAnsible(serverName, "start")
+        execAnsible(serverName, action)
     elif action == "start":
         execAnsible(serverName, action)
     elif action == "stop":
@@ -220,8 +223,8 @@ def main(serverName,branchName,action):
 if __name__ == "__main__":
     serverconf = "server.conf"
     confDict = JarService.init(serverconf)["conf"]
-    print confDict
-    global  mvn, java, nohup,ansibleHost,python,remote_py
+    # print confDict
+    global mvn, java, nohup,ansibleHost,python,remote_py
     # bakDir = confDict["bak_dir"]
     # bakNum = confDict["bak_num"]
     # checkTime = confDict["check_time"]
@@ -239,6 +242,7 @@ if __name__ == "__main__":
     # version = options.versionId
     serverName = options.serverName
     branchName = options.branchName
+    envName = options.envName
     if not action:
         print "参数执行操作 -a action [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
@@ -246,7 +250,14 @@ if __name__ == "__main__":
         print "参数服务名 -n servername "
         JarService.printServerName(projectDict)
         sys.exit()
+
     else:
+        if action == "start" or action == "restart" or action == "rollback":
+            if not envName:
+                print "参数执行操作 -e envName [dev,test,pro]"
+                sys.exit()
+            # else:
+            #     print "ll5"
         if serverName == "all":
             # 进行升序排列
             serverlist = sorted(projectDict.keys())
