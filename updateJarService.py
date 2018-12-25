@@ -478,19 +478,12 @@ if __name__ == "__main__":
         printServerName(projectDict)
         sys.exit()
     else:
-        # print "其他错误！"
-        # sys.exit()
-        # if not projectDict.has_key(serverName):
-        #     print "没有服务名：%s" % serverName
-        #     printServerName(projectDict)
-        #     sys.exit()
-        # main(serverName, branchName, action)
-        #
+
         startlist = projectDict["startServerList"]
         if serverName == "all":
             for serName in startlist:
                 main(serName, branchName, action)
-            #
+
             # for serName, serverNameDict in projectDict.items():
             #
             #     main(serName, branchName, action)

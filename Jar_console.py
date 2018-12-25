@@ -33,29 +33,41 @@ def execSh(cmd):
         sys.exit()
     return p.communicate()
 
-def execAnsible(serverName,action):
+def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
     print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
-    deploynode = serverNameDict["deploygroupname"]
+    if env == "dev":
+        deploynode = serverNameDict["devnodename"]
+    if env == "test":
+        deploynode = serverNameDict["testnodename"]
+    if env == "pro":
+        deploynode = serverNameDict["pronodename"]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
         deploynode, ansibleHost, python, remote_py, action, serverName, envName)
     print cmd
     ReturnExec(cmd)
 
-def deploy_node(serverName):
+def deploy_node(serverName,env):
     print "发送文件至远程节点 "
-    nodeName = projectDict[serverName]["deploygroupname"]
-    deployDir = projectDict[serverName]["deploydir"]
-    buildDir = projectDict[serverName]["builddir"]
+    # nodeName = projectDict[serverName]["deploygroupname"]
+    serverNameDict = projectDict[serverName]
+    deployDir = serverNameDict["deploydir"]
+
+    if env == "dev":
+        deploynode = serverNameDict["devnodename"]
+    if env == "test":
+        deploynode = serverNameDict["testnodename"]
+    if env == "pro":
+        deploynode = serverNameDict["pronodename"]
     # print deployDir
     # sys.exit()
     deployFile = projectDict[serverName]["jar"]
 
     # deployFile = os.path.join(deployDir,deployFile)
     # if ansibleDirIsExists(nodeName)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (nodeName, ansibleHost, deployFile, deployDir)
+    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (deploynode, ansibleHost, deployFile, deployDir)
     ReturnExec(copyFILE)
 
 #读取ansibel host 文件解析
@@ -81,25 +93,67 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
+def checkMaster():
+    # 获取项目分支是否为master
+    cmd = "git branch"
+    stdout, stderr = execSh(cmd)
+    print "out:", stdout
+    branch_list = [i.strip() for i in stdout.split("\n") if i]
+    if "* master" in branch_list:
+        print "已经在master 分支"
+        return True
+    print "err", stderr
+    return False
+
+
+def gitupdate(serverName):
+    serverNameDict = projectDict[serverName]
+    # deployDir = serverNameDict["deploydir"]
+    buildDir = serverNameDict["builddir"]
+
+    os.chdir(buildDir)
+    if not checkMaster():
+        checkout_m_cmd = "git checkout master"
+        print "切换至master分支"
+        ReturnExec(checkout_m_cmd)
+
+    print "获取 最新master分支"
+    pull_m_cmd = "git pull"
+    stdout, stderr = execSh(pull_m_cmd)
+    if "error" or "fatal" in stdout:
+        print stdout
+        return False
+    elif "error" or "fatal" in stderr:
+        print stderr
+        return False
+    else:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        return True
+
+
 # jar 文件mavn构建
 def buildMaven(serverName):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
+
+    if not gitupdate(serverName):
+         sys.exit()
+
     os.chdir(buildDir)
     print "workdir : %s" % os.getcwd()
      # = serverNameDict["deploydir"]
     cmd = "%(mvn)s clean && %(mvn)s install -Dmaven.test.skip=true" % {"mvn": mvn}
     print cmd
-    print "构建服务：%s" %serverName
+    print "构建服务：%s" % serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
     if stdout:
         print stdout
     if stderr:
         print stderr
-
 
 
 #读取ansibel host 文件解析
@@ -186,7 +240,7 @@ def fileExists(filePath):
         return False
     return True
 
-def main(serverName,branchName,action):
+def main(serverName,branchName,action,envName):
 
     if action == "init":
         # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
@@ -196,26 +250,29 @@ def main(serverName,branchName,action):
         JarService.mergeBranch(serverName, branchName)
     elif action == "install":
         # 用于远端机器部署项目
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "build":
+
         buildMaven(serverName)
     elif action == "deploy":
-        execAnsible(serverName, "back")
+        buildMaven(serverName)
+        execAnsible(serverName, "stop", envName)
+        execAnsible(serverName, "back", envName)
         # 部署新包至目标节点
-        deploy_node(serverName)
-        execAnsible(serverName, action)
+        deploy_node(serverName, envName)
+        execAnsible(serverName, "start", envName)
     elif action == "restart":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "start":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "stop":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "back":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "getback":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     elif action == "rollback":
-        execAnsible(serverName, action)
+        execAnsible(serverName, action, envName)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
@@ -225,10 +282,7 @@ if __name__ == "__main__":
     confDict = JarService.init(serverconf)["conf"]
     # print confDict
     global mvn, java, nohup,ansibleHost,python,remote_py
-    # bakDir = confDict["bak_dir"]
-    # bakNum = confDict["bak_num"]
-    # checkTime = confDict["check_time"]
-    # logsPath = confDict["logs_path"]
+
     mvn = confDict["mvn"]
     remote_py = confDict["remote_py"]
     python = confDict["python"]
@@ -250,22 +304,18 @@ if __name__ == "__main__":
         print "参数服务名 -n servername "
         JarService.printServerName(projectDict)
         sys.exit()
-
+    elif not envName:
+        print "参数执行操作 -e envName [dev,test,pro]"
+        sys.exit()
     else:
-        if action == "start" or action == "restart" or action == "rollback":
-            if not envName:
-                print "参数执行操作 -e envName [dev,test,pro]"
-                sys.exit()
-            # else:
-            #     print "ll5"
         if serverName == "all":
             # 进行升序排列
             serverlist = sorted(projectDict.keys())
             for serName in serverlist:
-                main(serName, branchName, action)
+                main(serName, branchName, action, envName)
         else:
             if not projectDict.has_key(serverName):
                 print "没有服务名：%s" % serverName
                 JarService.printServerName(projectDict)
                 sys.exit()
-            main(serverName, branchName, action)
+            main(serverName, branchName, action, envName)

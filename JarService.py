@@ -732,7 +732,6 @@ if __name__ == "__main__":
                 print "参数执行操作 -e envName [dev,test,pro]"
                 sys.exit()
 
-        print "ll"
         if serverName == "all":
             # 进行升序排列
             serverlist = sorted(projectDict.keys())
