@@ -239,15 +239,120 @@ def fileExists(filePath):
         print "文件：%s 不存在，请检查" % filePath
         return False
     return True
+# 初始化项目主应用可用于php部署，
+def initProject(serverName):
+    # 新机器 或者新目录项目部署
 
+    print "master install:%s" % serverName
+    # print projectDict
+    builddir = projectDict[serverName]["builddir"]
+    if not os.path.exists(builddir):
+        os.makedirs(builddir)
+    gitUrl = projectDict[serverName]["giturl"]
+    if not os.path.exists(builddir):
+        os.mkdir(builddir)
+    os.chdir(builddir)
+    print "部署路径：", os.getcwd()
+    stdout, stderr = execSh("git status .")
+    if stdout:
+        print"out：\n%s" % stdout
+        print "当前目录：%s,已经存在git仓库请检查!" % deployDir
+        return True
+    if stderr:
+        print "没有git仓库，下一步"
+        print"out：%s" % stderr
+
+    print "初始化本地仓库"
+    ReturnExec("git init")
+
+    print"本地git仓库当前项目认证"
+    config_cmd = "git config --local credential.helper store"
+    ReturnExec(config_cmd)
+
+    print "拉取代码"
+    pull_cmd = "git pull %s" % gitUrl
+    ReturnExec(pull_cmd)
+
+    print "添加远程仓库地址"
+    add_remote_cmd = "git remote add origin %s" % gitUrl
+    ReturnExec(add_remote_cmd)
+
+    print "获取分支"
+    fetch_cmd = "git fetch"
+    ReturnExec(fetch_cmd)
+
+    print "关联本地master分支与远程master"
+    upstream_cmd = "git branch --set-upstream-to=origin/master master"
+    ReturnExec(upstream_cmd)
+
+    print "获取 最新master分支"
+    pull_m_cmd = "git pull"
+    ReturnExec(pull_m_cmd)
+
+def readStdin():
+    input_str = raw_input("确认执行操作：Y/N")
+    return input_str.strip().lower()
+# 合并分支至master
+def mergeBranch(serverName, branchName):
+    builddir = projectDict[serverName]["builddir"]
+    fetch_cmd = "git fetch origin %s" % branchName
+    checkout_b_cmd = "git checkout %s" % branchName
+    pull_cmd = "git pull"
+    checkout_m_cmd = "git checkout master"
+    merge_cmd = "git merge origin/%s" % branchName
+    push_cmd = "git push origin master"
+    try:
+        print "切换工作目录"
+        print builddir
+        os.chdir(builddir)  # 切换工做目录
+        print os.getcwd()
+    except Exception, e:
+        print e
+        sys.exit()
+
+    print "取分支"
+    stdout, stderr = execSh(fetch_cmd)
+    print stdout
+
+    if "fatal" in stderr:
+        print stderr
+        print "检查分支 branchname:%s" % branchName
+        sys.exit()
+
+    # ReturnExec(fetch_cmd)
+
+    # 更新分支
+    print "更新本地 分支"
+    ReturnExec(pull_cmd)
+
+    # 切换至master分支
+    if not checkMaster():
+        print "切换至master分支"
+        ReturnExec(checkout_m_cmd)
+
+    # 更新master分支
+    print "更新master分支"
+    ReturnExec(pull_cmd)
+
+    # 合并分支至master
+    print "是否合并分支至master"
+    ReturnExec(merge_cmd)
+
+    # 提交合并的master 至源端git库
+    # 需要加确认 文件修改，在判断是否推送源端
+    print "是否提交合并的master 至源端git库"
+    option = readStdin()
+    if option != "y":
+        sys.exit()
+    ReturnExec(push_cmd)
 def main(serverName,branchName,action,envName):
 
     if action == "init":
         # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
-        JarService.initProject(serverName)
+        initProject(serverName)
     elif action == "merge":
         # 主服务项目合并分支至master
-        JarService.mergeBranch(serverName, branchName)
+        mergeBranch(serverName, branchName)
     elif action == "install":
         # 用于远端机器部署项目
         execAnsible(serverName, action, envName)

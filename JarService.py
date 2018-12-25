@@ -115,7 +115,7 @@ def checkMaster():
 def initProject(serverName):
     # 新机器 或者新目录项目部署
     print "master install:%s" % serverName
-    deployDir = projectDict[serverName]["deploydir"]
+    deployDir = projectDict[serverName]["builddir"]
     gitUrl = projectDict[serverName]["giturl"]
     if not os.path.exists(deployDir):
        os.mkdir(deployDir)
@@ -388,6 +388,7 @@ def startServer(serverName):
         else:
             print "启动服务： %s 失败" % serverName
             return False
+
 def versionSort(list):
   #对版本号排序 控制版本的数量
     from distutils.version import LooseVersion
