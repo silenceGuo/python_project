@@ -45,7 +45,7 @@ def execAnsible(serverName,action,env):
         deploynode = serverNameDict["pronodename"]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
-        deploynode, ansibleHost, python, remote_py, action, serverName, envName)
+        deploynode, ansibleHost, python, remote_py, action, serverName, env)
     print cmd
     ReturnExec(cmd)
 

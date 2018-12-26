@@ -314,13 +314,8 @@ def installServerName(serverName):
 
 def getPid(serverName):
     deployDir = projectDict[serverName]["deploydir"]
-    jar = projectDict[serverName]["jar"]
 
-    jarName = jar.split("/")[-1]
-    deployjar = os.path.join(deployDir, jarName)
-
-    # cmd = "pgrep -f %s" % deployDir
-    cmd = "pgrep -f %s" % deployjar
+    cmd = "pgrep -f %snode_modules/.bin/nuxt" % deployDir
     # cmd = "pgrep -f %s/war/" % deployDir
     pid, stderr = execSh(cmd)
     if pid:
@@ -362,32 +357,20 @@ def stopServer(serverName):
 def startServer(serverName):
     serverNameDict = projectDict[serverName]
     deploydir = serverNameDict["deploydir"]
-    # deploydir = serverNameDict["deploydir"]
-
-    jar = serverNameDict["jar"]
-    jarName = jar.split("/")[-1]
-
-    deployjar = os.path.join(deploydir, jarName)
-    if not os.path.exists(deployjar):
-        print "%s is not exits" % deployjar
+    if not os.path.exists(deploydir):
+        print "%s is not exits" % deploydir
         # sys.exit()
         return False
-    # conf = serverNameDict["conf"]
-    try:
-        xms = serverNameDict["xms"]
-        xmx = serverNameDict["xmx"]
-    except:
-        print "配置文件中为配置java内存参数参数默认512m "
-        xms = "512m"
-        xmx = "512m"
     serverlogpath = os.path.join(logsPath, serverName)
     if getPid(serverName):
         print "%s 已经启动,请先停止！ " % serverName
         return False
     else:
+
+        os.chdir(deploydir)
+        print "workdir：%s" % os.getcwd()
         print "启动服务：%s" % serverName
-        cmd = "%s %s -Xms%s -Xmx%s -jar %s --spring.profiles.active=%s >%s.out 2>&1 &" % (
-        nohup, java, xms, xmx, deployjar, envName, serverlogpath)
+        cmd = "%s %s run start  >%s.out 2>&1 &" % (nohup,npm, serverlogpath)
         # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
         print cmd
         # sys.exit()
@@ -672,6 +655,7 @@ def main(serverName, branchName, action):
     elif action == "stop":
         stopServer(serverName)
     elif action == "back":
+        stopServer(serverName)
         backWar(serverName)
     elif action == "getback":
         versionlist = getVersion(serverName)
@@ -720,7 +704,7 @@ def init(serverconf):
 
 if __name__ == "__main__":
 
-    serverconf = "nodeServer.conf"
+    serverconf = "/python-project/nodeServer.conf"
     # print os.getcwd()
     # sys.exit()
     confDict = init(serverconf)["conf"]
@@ -732,14 +716,14 @@ if __name__ == "__main__":
     envName = options.envName
     try:
         nodeConf = confDict["node_conf"]
-        global bakDir, bakNum, checkTime, logsPath, mvn, java, nohup
+        global bakDir, bakNum, checkTime, logsPath, mvn, java, nohup ,npm
         bakDir = confDict["bak_dir"]
         bakNum = int(confDict["bak_num"])
         checkTime = int(confDict["check_time"])
         logsPath = confDict["logs_path"]
         mvn = confDict["mvn"]
-        java = confDict["java"]
         nohup = confDict["nohup"]
+        npm = confDict["npm"]
         # node = confDict["node"]
     except Exception, e:
         print "%s 错误" % e
@@ -750,7 +734,7 @@ if __name__ == "__main__":
         os.makedirs(bakDir)
     if os.path.exists(nodeConf):
         projectDict = readConf(nodeConf)
-        print projectDict
+        # print projectDict
     else:
         print "%s is not exists" % nodeConf
         print jar_conf_str
@@ -764,10 +748,10 @@ if __name__ == "__main__":
         sys.exit()
 
     else:
-        if action == "start" or action == "restart" or action == "rollback":
-            if not envName:
-                print "参数执行操作 -e envName [dev,test,pro]"
-                sys.exit()
+        # if action == "start" or action == "restart" or action == "rollback":
+        #     if not envName:
+        #         print "参数执行操作 -e envName [dev,test,pro]"
+        #         sys.exit()
 
         if serverName == "all":
             # 进行升序排列

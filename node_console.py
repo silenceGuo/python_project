@@ -46,30 +46,10 @@ def execAnsible(serverName,action,env):
         deploynode = serverNameDict["pronodename"]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
-        deploynode, ansibleHost, python, remote_py, action, serverName, envName)
+        deploynode, ansibleHost, python, remote_py, action, serverName, env)
     print cmd
     ReturnExec(cmd)
 
-def deploy_node(serverName,env):
-    print "发送文件至远程节点 "
-    # nodeName = projectDict[serverName]["deploygroupname"]
-    serverNameDict = projectDict[serverName]
-    deployDir = serverNameDict["deploydir"]
-
-    if env == "dev":
-        deploynode = serverNameDict["devnodename"]
-    if env == "test":
-        deploynode = serverNameDict["testnodename"]
-    if env == "pro":
-        deploynode = serverNameDict["pronodename"]
-    # print deployDir
-    # sys.exit()
-    deployFile = projectDict[serverName]["jar"]
-
-    # deployFile = os.path.join(deployDir,deployFile)
-    # if ansibleDirIsExists(nodeName)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (deploynode, ansibleHost, deployFile, deployDir)
-    ReturnExec(copyFILE)
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
@@ -106,7 +86,6 @@ def checkMaster():
     print "err", stderr
     return False
 
-
 def gitupdate(serverName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
@@ -121,13 +100,17 @@ def gitupdate(serverName):
     print "获取 最新master分支"
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
+    # 判断是否有git 执行错误
+    return isNoErr(stdout, stderr)
 
-    if "error" or "fatal" in stdout:
+
+def isNoErr(stdout, stderr):
+    # 有错误返回false
+    if not "error" or "fatal" in stdout:
         print "stdout:%s" % stdout
 
         return False
-    elif "error" or "fatal" in stderr:
-
+    elif not "error" or "fatal" in stderr:
         print "stderr:%s" % stderr
         return False
     else:
@@ -135,36 +118,45 @@ def gitupdate(serverName):
         print "stderr:%s" % stderr
         return True
 
-
 # jar 文件mavn构建
-def buildMaven(serverName,envName):
+def buildNode(serverName,env):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
     print gitupdate(serverName)
-    # if not gitupdate(serverName):
-    #     print 's'
-    sys.exit()
+    if not gitupdate(serverName):
+        print 'git is updata err'
+        sys.exit()
     os.chdir(buildDir)
     print "workdir : %s" % os.getcwd()
     cmd_install = "%s install" % npm
     stdout, stderr = execSh(cmd_install)
 
-    if stdout:
-        print stdout
-    if stderr:
-        print stderr
+    if not isNoErr(stdout, stderr):
+        print "%s exc err" % cmd_install
+        sys.exit()
 
-    cmd = "%s run %s" % (npm, envName)
-    print cmd
+    cmd = "%s run %s" % (npm, env)
+
     print "构建服务：%s" % serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
-    if stdout:
-        print stdout
-    if stderr:
-        print stderr
+    return isNoErr(stdout, stderr)
+
+def delployDir(serverName,env):
+    serverNameDict = projectDict[serverName]
+    deployDir = serverNameDict["deploydir"]
+    buildDir = serverNameDict["builddir"]
+    if env == "dev":
+        deploynode = serverNameDict["devnodename"]
+    if env == "test":
+        deploynode = serverNameDict["testnodename"]
+    if env == "pro":
+        deploynode = serverNameDict["pronodename"]
+
+    copyFILE = "ansible %s -i %s -m synchronize -a 'src=%s dest=%s delete=yes'" % (deploynode, ansibleHost, buildDir, deployDir)
+    ReturnExec(copyFILE)
 
 
 #读取ansibel host 文件解析
@@ -201,8 +193,9 @@ def parseAnsibleOut(stdout):
     except:
         pass
 
-def ansibileSyncDir(ip,sourceDir,destDir):
-    SyncDir = "ansible %s -m synchronize -a 'src=%s dest=%s'" % (ip, sourceDir, destDir)
+def ansibileSyncDir(node,sourceDir,destDir):
+
+    SyncDir = "ansible %s -m synchronize -a 'src=%s dest=%s delete=yes'" % (node, sourceDir, destDir)
 
     """
     ansible test -m synchronize -a 'src=/etc/yum.repos.d/epel.repo dest=/tmp/epel.repo' -k                  # rsync 传输文件
@@ -212,21 +205,7 @@ def ansibileSyncDir(ip,sourceDir,destDir):
     """
     ReturnExec(SyncDir)
 
-# 更新远程节点的代码适用php
-def ansibleUpdateGit(serverName):
-    print "更新主代码git代码"
-    nodeName = projectDict[serverName]["deploygroupname"]
-    deployDir = projectDict[serverName]["deploydir"]
-    UpdateDir = 'ansible %s -i %s -m shell -a "cd %s;sudo git pull"' % (nodeName, ansibileHostFile, deployDir)
-    ReturnExec(UpdateDir)
 
-def ansibileCopyZipFile(serverName):
-    nodeName = projectDict[serverName]["deploygroupname"]
-    deployDir = projectDict[serverName]["deploydir"]
-
-    deployFile = projectDict[serverName]["jar"]
-    CopyZipFile = "ansible %s -i %s -m unarchive -a 'src=%s dest=%s copy=yes owner=tomcat group=tomcat backup=yes'" % (nodeName, ansibileHostFile, deployFile, deployDir)
-    ReturnExec(CopyZipFile)
 
 def ansibleDirIsExists(ip,filepath):
     # 判断远程 文件或者目录是否存在
@@ -358,39 +337,39 @@ def mergeBranch(serverName, branchName):
         sys.exit()
     ReturnExec(push_cmd)
 
-def main(serverName,branchName,action,envName):
+def main(serverName,branchName,action,env):
 
     if action == "init":
         # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
         initProject(serverName)
     elif action == "merge":
         # 主服务项目合并分支至master
-        nodeService.mergeBranch(serverName, branchName)
+        mergeBranch(serverName, branchName)
     elif action == "install":
         # 用于远端机器部署项目
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "build":
-
-        buildMaven(serverName,envName)
+         buildNode(serverName,env)
     elif action == "deploy":
-        buildMaven(serverName,envName)
-        execAnsible(serverName, "stop", envName)
-        execAnsible(serverName, "back", envName)
+        # buildNode(serverName, env)
+
+        # execAnsible(serverName, "stop", env)
+        # execAnsible(serverName, "back", env)
         # 部署新包至目标节点
-        deploy_node(serverName, envName)
-        execAnsible(serverName, "start", envName)
+        delployDir(serverName, env)
+        # execAnsible(serverName, "start", env)
     elif action == "restart":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "start":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "stop":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "back":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "getback":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     elif action == "rollback":
-        execAnsible(serverName, action, envName)
+        execAnsible(serverName, action, env)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
