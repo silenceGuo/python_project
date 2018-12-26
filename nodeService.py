@@ -370,7 +370,8 @@ def startServer(serverName):
         os.chdir(deploydir)
         print "workdir：%s" % os.getcwd()
         print "启动服务：%s" % serverName
-        cmd = "%s %s run start  >%s.out 2>&1 &" % (nohup,npm, serverlogpath)
+        cmd = "%s %s run start >%s.out 2>&1 &" % (nohup,npm, serverlogpath)
+        # cmd = "%s %s run start " % (nohup,npm)
         # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
         print cmd
         # sys.exit()
@@ -385,6 +386,8 @@ def startServer(serverName):
             if getPid(serverName):
                 pass
         if getPid(serverName):
+            # 需要目标服务器 在env 环境找到node执行命令 否则会报错。无法执行远程启动
+            print "目标服务尝试执行 'ln /opt/node-v9.5.0-linux-x64/bin/node /usr/bin/node' 在重试"
             print "启动服务：%s 成功" % serverName
             return True
         else:
@@ -487,7 +490,9 @@ def copyDir(sourDir, disDir):
     try:
         print "copy Dir:%s,to:%s" % (sourDir, disDir)
         # shutil.copy2(sourDir, disDir)  # % ( disfile, time.strftime("%Y-%m-%d-%H%M%S"))
-        shutil.copytree(sourDir, disDir)
+        # shutil.copytree(sourDir, disDir)
+        cmd = "cp -ar %s %s " %(sourDir, disDir)
+        ReturnExec(cmd)
     except Exception, e:
         print e,
         sys.exit(1)
@@ -670,7 +675,6 @@ def main(serverName, branchName, action):
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
-
 
 # 输出服务配置文件中的服务名
 def printServerName(projectDict):

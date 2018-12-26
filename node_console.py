@@ -45,10 +45,10 @@ def execAnsible(serverName,action,env):
     if env == "pro":
         deploynode = serverNameDict["pronodename"]
 
-    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
-        deploynode, ansibleHost, python, remote_py, action, serverName, env)
-    print cmd
+    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (deploynode, ansibleHost, python, remote_py, action, serverName, env)
+
     ReturnExec(cmd)
+
 
 
 #读取ansibel host 文件解析
@@ -361,7 +361,7 @@ def main(serverName,branchName,action,env):
     elif action == "restart":
         execAnsible(serverName, action, env)
     elif action == "start":
-        execAnsible(serverName, action, env)
+        execAnsible(serverName, action,env)
     elif action == "stop":
         execAnsible(serverName, action, env)
     elif action == "back":
