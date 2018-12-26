@@ -373,7 +373,7 @@ def startServer(serverName):
         cmd = "%s %s run start >%s.out 2>&1 &" % (nohup,npm, serverlogpath)
         # cmd = "%s %s run start " % (nohup,npm)
         # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
-        print cmd
+
         # sys.exit()
         stdout, stderr = execSh(cmd)
         if stdout:
@@ -387,10 +387,11 @@ def startServer(serverName):
                 pass
         if getPid(serverName):
             # 需要目标服务器 在env 环境找到node执行命令 否则会报错。无法执行远程启动
-            print "目标服务尝试执行 'ln /opt/node-v9.5.0-linux-x64/bin/node /usr/bin/node' 在重试"
+
             print "启动服务：%s 成功" % serverName
             return True
         else:
+            print "目标服务尝试执行 'ln /opt/node-v9.5.0-linux-x64/bin/node /usr/bin/node' 在重试"
             print "启动服务： %s 失败" % serverName
             return False
 
