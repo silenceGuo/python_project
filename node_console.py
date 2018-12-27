@@ -9,7 +9,6 @@ import time
 import ConfigParser
 from optparse import OptionParser
 from subprocess import PIPE,Popen
-# import JarService
 import nodeService
 import json
 reload(sys)
@@ -36,7 +35,7 @@ def execSh(cmd):
 
 def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
-    print " server:%s is %s now " % (serverName,action)
+    print " server:%s is %s on %s now" % (serverName, env, action)
     # deploydir = serverNameDict["deploydir"]
     if env == "dev":
         deploynode = serverNameDict["devnodename"]
@@ -143,7 +142,7 @@ def buildNode(serverName,env):
     # sys.exit()
     stdout, stderr = execSh(cmd)
     return isNoErr(stdout, stderr)
-
+# 将构建完成的文件同步到目标服务器
 def delployDir(serverName,env):
     serverNameDict = projectDict[serverName]
     deployDir = serverNameDict["deploydir"]
@@ -157,7 +156,6 @@ def delployDir(serverName,env):
 
     copyFILE = "ansible %s -i %s -m synchronize -a 'src=%s dest=%s delete=yes'" % (deploynode, ansibleHost, buildDir, deployDir)
     ReturnExec(copyFILE)
-
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
@@ -204,8 +202,6 @@ def ansibileSyncDir(node,sourceDir,destDir):
     ansible test -m synchronize -a 'src=/tmp/test/abc.txt dest=/tmp/123/ mode=pull' -k                      # 把远程的文件，拉到本地的/tmp/123/目录下　　
     """
     ReturnExec(SyncDir)
-
-
 
 def ansibleDirIsExists(ip,filepath):
     # 判断远程 文件或者目录是否存在
@@ -351,13 +347,13 @@ def main(serverName,branchName,action,env):
     elif action == "build":
          buildNode(serverName,env)
     elif action == "deploy":
-        # buildNode(serverName, env)
+        buildNode(serverName, env)
 
-        # execAnsible(serverName, "stop", env)
-        # execAnsible(serverName, "back", env)
+        execAnsible(serverName, "stop", env)
+        execAnsible(serverName, "back", env)
         # 部署新包至目标节点
         delployDir(serverName, env)
-        # execAnsible(serverName, "start", env)
+        execAnsible(serverName, "start", env)
     elif action == "restart":
         execAnsible(serverName, action, env)
     elif action == "start":
@@ -404,6 +400,9 @@ if __name__ == "__main__":
         print "参数执行操作 -e envName [dev,test,pro]"
         sys.exit()
     else:
+        if not envName in ["dev","test","pro"]:
+            print "参数执行操作 -e envName [dev,test,pro]"
+            sys.exit()
         if serverName == "all":
             # 进行升序排列
             serverlist = sorted(projectDict.keys())

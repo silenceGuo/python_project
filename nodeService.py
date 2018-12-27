@@ -24,40 +24,41 @@ sys.setdefaultencoding('utf-8')
 # 配置文件模板
 server_conf_str = """
 # 配置通过 # 可以注释不生效
-
 [conf]
-# jar服务和node服务的配置文件
-jarconf = /python-project/jar.conf
+# node服务和node服务的配置文件
+node_conf = /python-project/node.conf
 # 备份上一次的应用目录
-bakdir = /app/bak/
+bak_dir = /app/bak/
 # 备份文件控制版本数
-keepBakNum = 5
+bak_num = 5
 # 服务检查次数
-checktime = 3
+check_time = 3
 # 日志路径
-logpath = /data/logs/
+logs_path = /data/logs/
 #ansible 主机文件
-ansibilehostfile = /etc/ansible/hosts
+ansibile_host = /etc/ansible/hosts
 # maven 执行命令路径
-maven_home = /app/apache-maven-3.5.0/bin/mvn
+mvn = /app/apache-maven-3.5.0/bin/mvn
 # java 执行命令路径
-java_home = /app/jdk1.8.0_121/bin/java
+java = /app/jdk1.8.0_121/bin/java
 # nohup 命令路径
 nohup = /usr/bin/nohup
 # node执行命令路径
-node_home = /data/app/node-v8.12.0/bin/node
-# 定义远程执行脚本路径
-python_dir = /python-project/updateJarService.py
+node = /opt/node-v9.5.0-linux-x64/bin/node
+npm = /opt/node-v9.5.0-linux-x64/bin/npm
 # pthon 执行命令路径
-python_home = /usr/bin/python
+python = /usr/bin/python
+# 定义远程执行脚本路径 ，
+remote_py = /python-project/nodeService.py
 """
-jar_conf_str = """
-[1-activity-eureka]
-deployDir = /kilimall/procjet/activity-cloud/activity-eureka/
-deployGroupName = node1
-jar = /kilimall/procjet/activity-cloud/activity-eureka/target/activity-eureka-1.0.1.jar
-xms = 256m
-xmx = 256m
+node_conf_str = """
+[bargainssr]
+builddir = /kilimall/procjet/node/bargainssr/
+deploydir = /kilimall/procjet/node/bargainssr/
+giturl = http://git.kilimall.com/kilimall/bargainssr.git
+devnodename = node1
+testnodename = node2
+pronodename = node3
 """
 
 
@@ -124,7 +125,7 @@ def initProject(serverName):
         print projectDict
     else:
         print "%s is not exists" % nodeConf
-        print jar_conf_str
+        print node_conf_str
         sys.exit()
 
     deployDir = projectDict[serverName]["builddir"]
@@ -371,10 +372,7 @@ def startServer(serverName):
         print "workdir：%s" % os.getcwd()
         print "启动服务：%s" % serverName
         cmd = "%s %s run start >%s.out 2>&1 &" % (nohup,npm, serverlogpath)
-        # cmd = "%s %s run start " % (nohup,npm)
-        # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
 
-        # sys.exit()
         stdout, stderr = execSh(cmd)
         if stdout:
             print "stdout:%s" % stdout
@@ -383,18 +381,16 @@ def startServer(serverName):
         for i in xrange(1, checkTime + 1):
             print "循环检查服务启动状态：%s 次" % i
             time.sleep(checkTime)
-            if getPid(serverName):
-                pass
+            getPid(serverName)
+
         if getPid(serverName):
             # 需要目标服务器 在env 环境找到node执行命令 否则会报错。无法执行远程启动
-
             print "启动服务：%s 成功" % serverName
             return True
         else:
-            print "目标服务尝试执行 'ln /opt/node-v9.5.0-linux-x64/bin/node /usr/bin/node' 在重试"
+            print "目标服务器尝试执行 'ln -s %s /usr/bin/node' 在重试" % node
             print "启动服务： %s 失败" % serverName
             return False
-
 
 def versionSort(list):
     # 对版本号排序 控制版本的数量
@@ -630,7 +626,6 @@ def rollBack(serverName, versionId=""):
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
 
-
 # 判断目录是否为空
 def dir_is_null(path):
     # print os.listdir(path)
@@ -706,7 +701,6 @@ def init(serverconf):
         sys.exit()
 
 
-
 if __name__ == "__main__":
 
     serverconf = "/python-project/nodeServer.conf"
@@ -721,7 +715,7 @@ if __name__ == "__main__":
     envName = options.envName
     try:
         nodeConf = confDict["node_conf"]
-        global bakDir, bakNum, checkTime, logsPath, mvn, java, nohup ,npm
+        global bakDir, bakNum, checkTime, logsPath, mvn, java, nohup, npm, node
         bakDir = confDict["bak_dir"]
         bakNum = int(confDict["bak_num"])
         checkTime = int(confDict["check_time"])
@@ -729,6 +723,7 @@ if __name__ == "__main__":
         mvn = confDict["mvn"]
         nohup = confDict["nohup"]
         npm = confDict["npm"]
+        node = confDict["node"]
         # node = confDict["node"]
     except Exception, e:
         print "%s 错误" % e
@@ -742,7 +737,7 @@ if __name__ == "__main__":
         # print projectDict
     else:
         print "%s is not exists" % nodeConf
-        print jar_conf_str
+        print node_conf_str
         sys.exit()
     if not action:
         print "参数执行操作 -a action [install,init,back,rollback，getback，start,stop,restart]"
