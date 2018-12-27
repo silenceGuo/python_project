@@ -136,12 +136,14 @@ def buildNode(serverName,env):
         print "%s exc err" % cmd_install
         sys.exit()
 
-    cmd = "%s run %s" % (npm, env)
+    # cmd = "%s run %s" % (npm, env)
+    cmd = "%s run debugbuild" % npm
 
     print "构建服务：%s" % serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
     return isNoErr(stdout, stderr)
+
 # 将构建完成的文件同步到目标服务器
 def delployDir(serverName,env):
     serverNameDict = projectDict[serverName]
@@ -347,7 +349,9 @@ def main(serverName,branchName,action,env):
     elif action == "build":
          buildNode(serverName,env)
     elif action == "deploy":
-        buildNode(serverName, env)
+        if not buildNode(serverName, env):
+            print "build false"
+            sys.exit(1)
 
         execAnsible(serverName, "stop", env)
         execAnsible(serverName, "back", env)

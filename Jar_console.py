@@ -105,6 +105,19 @@ def checkMaster():
     print "err", stderr
     return False
 
+def isNoErr(stdout, stderr):
+    # 有错误返回false
+    errlist = ["error","fatal","error"]
+    if not "error" or "fatal" in stdout:
+        print "stdout:%s" % stdout
+        return False
+    elif not "error" or "fatal" in stderr:
+        print "stderr:%s" % stderr
+        return False
+    else:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        return True
 
 def gitupdate(serverName):
     serverNameDict = projectDict[serverName]
@@ -120,17 +133,11 @@ def gitupdate(serverName):
     print "获取 最新master分支"
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
-    if "error" or "fatal" in stdout:
-        print stdout
-        return False
-    elif "error" or "fatal" in stderr:
-        print stderr
-        return False
+    if not isNoErr(stdout, stderr):
+        print "%s exec err" % pull_m_cmd
+        # sys.exit()
     else:
-        print "stdout:%s" % stdout
-        print "stderr:%s" % stderr
         return True
-
 
 # jar 文件mavn构建
 def buildMaven(serverName):
@@ -138,23 +145,32 @@ def buildMaven(serverName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
-
+    # print gitupdate(serverName)
+    # sys.exit()
     if not gitupdate(serverName):
-         sys.exit()
+        print "git update is err"
+        sys.exit(1)
 
     os.chdir(buildDir)
     print "workdir : %s" % os.getcwd()
      # = serverNameDict["deploydir"]
     cmd = "%(mvn)s clean && %(mvn)s install -Dmaven.test.skip=true" % {"mvn": mvn}
-    print cmd
     print "构建服务：%s" % serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
-    if stdout:
-        print stdout
-    if stderr:
-        print stderr
 
+    if "BUILD FAILURE" in stdout:
+        print "stdout:%s" % stdout
+        return False
+    elif "BUILD FAILURE" in stderr:
+        print "stderr:%s" % stderr
+        return False
+    else:
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+        return True
 
 #读取ansibel host 文件解析
 def readConfAnsible(file):
@@ -360,7 +376,9 @@ def main(serverName,branchName,action,envName):
 
         buildMaven(serverName)
     elif action == "deploy":
-        buildMaven(serverName)
+        if not buildMaven(serverName):
+            print "build false"
+            sys.exit(1)
         execAnsible(serverName, "stop", envName)
         execAnsible(serverName, "back", envName)
         # 部署新包至目标节点
