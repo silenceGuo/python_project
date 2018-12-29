@@ -642,7 +642,7 @@ def main(serverName,branchName,action):
         # print startServer(serverName)
         if not startServer(serverName):
             # print "启动失败"
-            sys.exit(1)
+            # sys.exit(1)
             return False
         else:
             return True

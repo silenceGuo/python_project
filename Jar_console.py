@@ -47,11 +47,11 @@ def execAnsible(serverName,action,env):
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
         deploynode, ansibleHost, python, remote_py, action, serverName, env)
     stdout,stderr = execSh(cmd)
-    if not "FAILED" in stdout:
+    if "FAILED" in stdout:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
         return False
-    elif not "FAILED" in stderr:
+    elif "FAILED" in stderr:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
         return False
@@ -400,12 +400,16 @@ def main(serverName,branchName,action,envName):
     elif action == "restart":
         # execAnsible(serverName, action, envName)
         execAnsible(serverName, "stop", envName)
+
         if not execAnsible(serverName, "start", envName):
+            print "ss"
             sys.exit(1)
+        # else:
+        #     sys.exit()
     elif action == "start":
         if not execAnsible(serverName, "start", envName):
             sys.exit(1)
-        # print execAnsible(serverName, action, envName)
+
     elif action == "stop":
         execAnsible(serverName, action, envName)
     elif action == "back":
