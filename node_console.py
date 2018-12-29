@@ -352,7 +352,6 @@ def main(serverName,branchName,action,env):
         if not buildNode(serverName, env):
             print "build false"
             sys.exit(1)
-
         execAnsible(serverName, "stop", env)
         execAnsible(serverName, "back", env)
         # 部署新包至目标节点

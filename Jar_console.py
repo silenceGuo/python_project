@@ -46,8 +46,19 @@ def execAnsible(serverName,action,env):
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
         deploynode, ansibleHost, python, remote_py, action, serverName, env)
-    print cmd
-    ReturnExec(cmd)
+    stdout,stderr = execSh(cmd)
+    if not "FAILED" in stdout:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        return False
+    elif not "FAILED" in stderr:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        return False
+    else:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        return True
 
 def deploy_node(serverName,env):
     print "发送文件至远程节点 "
@@ -133,6 +144,7 @@ def gitupdate(serverName):
     print "获取 最新master分支"
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
+    print "ss"
     if not isNoErr(stdout, stderr):
         print "%s exec err" % pull_m_cmd
         # sys.exit()
@@ -383,11 +395,17 @@ def main(serverName,branchName,action,envName):
         execAnsible(serverName, "back", envName)
         # 部署新包至目标节点
         deploy_node(serverName, envName)
-        execAnsible(serverName, "start", envName)
+        if not execAnsible(serverName, "start", envName):
+            sys.exit(1)
     elif action == "restart":
-        execAnsible(serverName, action, envName)
+        # execAnsible(serverName, action, envName)
+        execAnsible(serverName, "stop", envName)
+        if not execAnsible(serverName, "start", envName):
+            sys.exit(1)
     elif action == "start":
-        execAnsible(serverName, action, envName)
+        if not execAnsible(serverName, "start", envName):
+            sys.exit(1)
+        # print execAnsible(serverName, action, envName)
     elif action == "stop":
         execAnsible(serverName, action, envName)
     elif action == "back":

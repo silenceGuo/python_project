@@ -387,6 +387,7 @@ def startServer(serverName):
             return True
         else:
             print "启动服务： %s 失败" % serverName
+            # sys.exit(1)
             return False
 
 def versionSort(list):
@@ -638,7 +639,13 @@ def main(serverName,branchName,action):
         stopServer(serverName)
         startServer(serverName)
     elif action == "start":
-        startServer(serverName)
+        # print startServer(serverName)
+        if not startServer(serverName):
+            # print "启动失败"
+            sys.exit(1)
+            return False
+        else:
+            return True
     elif action == "stop":
         stopServer(serverName)
     elif action == "back":
@@ -681,7 +688,7 @@ def init(serverconf):
     else:
         print "%s is not exists" % serverconf
         print server_conf_str
-        sys.exit()
+        sys.exit(1)
 
 if __name__ == "__main__":
 
