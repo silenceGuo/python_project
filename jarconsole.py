@@ -232,7 +232,6 @@ def ansibileCopyZipFile(serverName):
     CopyZipFile = "ansible %s -i %s -m unarchive -a 'src=%s dest=%s copy=yes owner=tomcat group=tomcat backup=yes'" % (nodeName, ansibileHostFile, deployFile, deployDir)
     ReturnExec(CopyZipFile)
 
-
 def ansibleDirIsExists(ip,filepath):
     # 判断远程 文件或者目录是否存在
     cmd = "ansible %s -m stat -a 'path=%s' -o " % (ip, filepath)
