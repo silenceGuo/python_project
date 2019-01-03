@@ -35,6 +35,7 @@ def execSh(cmd):
 
 def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
+    print serverNameDict
     print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
     if env == "dev":
@@ -422,6 +423,31 @@ def main(serverName,branchName,action,envName):
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
 
+# 读取启动服务顺序文件
+def readfile(file):
+    if not os.path.exists(file):
+        return False
+    with open(file) as fd:
+        for i in fd.readlines():
+            if i:
+                return [i.strip().split(":")[1], i.strip().split(":")[0]]
+            return False
+
+# 写启动服务顺序文件
+def writhfile(file,info):
+    if not os.path.exists(file):
+        print file
+        with open(file, 'w+') as fd:
+            fd.write(info)
+    else:
+        with open(file, 'w+')as fd:
+            fd.write(info)
+
+# 清理启动服务顺序文件
+def cleanfile(file):
+    with open(file, 'w+') as fd:
+        fd.write("")
+
 if __name__ == "__main__":
     serverconf = "server.conf"
     confDict = JarService.init(serverconf)["conf"]
@@ -435,6 +461,7 @@ if __name__ == "__main__":
     nohup = confDict["nohup"]
     ansibleHost = confDict["ansibile_host"]
     jarConf = confDict["jar_conf"]
+    startConf = confDict["start_server"]
     projectDict = JarService.readConf(jarConf)
     options, args = JarService.getOptions()
     action = options.action
@@ -450,14 +477,24 @@ if __name__ == "__main__":
         JarService.printServerName(projectDict)
         sys.exit()
     elif not envName:
-        print "参数执行操作 -e envName [dev,test,pro]"
+        print "参数执行操作 -e envName [dev,test,pre]"
         sys.exit()
     else:
         if serverName == "all":
             # 进行升序排列
+            if readfile(startConf):
+                serName, point = readfile(startConf)
+            else:
+                point = 0
             serverlist = sorted(projectDict.keys())
-            for serName in serverlist:
+            for serName in serverlist[int(point):]:
+                ser_index = serverlist.index(serName)
+                info = "%s:%s" % (ser_index, serName)
+                writhfile(startConf, info)
+                # print ser_index
                 main(serName, branchName, action, envName)
+            cleanfile(startConf)
+
         else:
             if not projectDict.has_key(serverName):
                 print "没有服务名：%s" % serverName

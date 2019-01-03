@@ -386,8 +386,7 @@ def startServer(serverName):
             print "启动服务：%s 成功" % serverName
             return True
         else:
-            print "启动服务： %s 失败" % serverName
-            # sys.exit(1)
+            print "启动服务： %s FAILED" % serverName
             return False
 
 def versionSort(list):
