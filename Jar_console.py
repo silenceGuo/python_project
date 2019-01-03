@@ -423,7 +423,7 @@ def main(serverName,branchName,action,envName):
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
 
-# 读取启动服务顺序文件
+# 读取执行操作服务顺序文件
 def readfile(file):
     if not os.path.exists(file):
         return False
@@ -433,7 +433,7 @@ def readfile(file):
                 return [i.strip().split(":")[1], i.strip().split(":")[0]]
             return False
 
-# 写启动服务顺序文件
+# 写执行操作服务顺序文件
 def writhfile(file,info):
     if not os.path.exists(file):
         # print file
@@ -443,7 +443,7 @@ def writhfile(file,info):
         with open(file, 'w+')as fd:
             fd.write(info)
 
-# 清理启动服务顺序文件
+# 清理执行操作服务顺序文件
 def cleanfile(file):
     with open(file, 'w+') as fd:
         fd.write("")
@@ -481,11 +481,13 @@ if __name__ == "__main__":
         sys.exit()
     else:
         if serverName == "all":
-            # 进行升序排列
+            # 获取执行失败服务索引
             if readfile(startConf):
                 serName, point = readfile(startConf)
             else:
                 point = 0
+
+            # 进行升序排列取到列表
             serverlist = sorted(projectDict.keys())
             # 从上次执行失败的位置开始执行
             for serName in serverlist[int(point):]:

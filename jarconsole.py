@@ -52,8 +52,23 @@ def execAnsible(serverName,action):
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s'" % (
     deploynode, ansibileHostFile, python_home, python_dir,action, serverName)
-    print cmd
-    ReturnExec(cmd)
+    stdout, stderr = execSh(cmd)
+    if "FAILED" in stdout:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        print "%s %s False on %s " % (serverName, action, env)
+        return False
+    elif "FAILED" in stderr:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        print "%s %s False on %s " % (serverName, action, env)
+        return False
+    else:
+        print "stdout:%s" % stdout
+        print "stderr:%s" % stderr
+        print "%s %s True on %s " % (serverName, action, env)
+        return True
+
 
 def delpoy_install(serverName):
 
