@@ -436,7 +436,7 @@ def readfile(file):
 # 写启动服务顺序文件
 def writhfile(file,info):
     if not os.path.exists(file):
-        print file
+        # print file
         with open(file, 'w+') as fd:
             fd.write(info)
     else:
@@ -487,11 +487,11 @@ if __name__ == "__main__":
             else:
                 point = 0
             serverlist = sorted(projectDict.keys())
+            # 从上次执行失败的位置开始执行
             for serName in serverlist[int(point):]:
                 ser_index = serverlist.index(serName)
                 info = "%s:%s" % (ser_index, serName)
                 writhfile(startConf, info)
-                # print ser_index
                 main(serName, branchName, action, envName)
             cleanfile(startConf)
 
