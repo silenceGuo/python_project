@@ -35,7 +35,7 @@ def execSh(cmd):
 
 def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
-    print serverNameDict
+    # print serverNameDict
     print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
     if env == "dev":
