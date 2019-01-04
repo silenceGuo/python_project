@@ -73,30 +73,31 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
-def checkMaster():
+def checkMaster(branchName):
     # 获取项目分支是否为master
     cmd = "git branch"
     stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
-    if "* master" in branch_list:
-        print "已经在master 分支"
+    branchName_str = "* %s" % branchName
+    if branchName_str in branch_list:
+        print "%s 分支" % branchName
         return True
     print "err", stderr
     return False
 
-def gitupdate(serverName):
+def gitupdate(serverName,branchName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
 
     os.chdir(buildDir)
-    if not checkMaster():
-        checkout_m_cmd = "git checkout master"
-        print "切换至master分支"
+    if not checkMaster(branchName):
+        checkout_m_cmd = "git checkout %s" branchName
+        print "切换至%s分支" % branchName
         ReturnExec(checkout_m_cmd)
 
-    print "获取 最新master分支"
+    print "获取 最新%s分支" % branchName
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
     # 判断是否有git 执行错误
@@ -118,13 +119,13 @@ def isNoErr(stdout, stderr):
         return True
 
 # jar 文件mavn构建
-def buildNode(serverName,env):
+def buildNode(serverName,branchName):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
-    print gitupdate(serverName)
-    if not gitupdate(serverName):
+    print gitupdate(serverName,branchName)
+    if not gitupdate(serverName,branchName):
         print 'git is updata err'
         sys.exit()
     os.chdir(buildDir)
@@ -347,9 +348,9 @@ def main(serverName,branchName,action,env):
         # 用于远端机器部署项目
         execAnsible(serverName, action, env)
     elif action == "build":
-         buildNode(serverName,env)
+         buildNode(serverName,branchName)
     elif action == "deploy":
-        if not buildNode(serverName, env):
+        if not buildNode(serverName, branchName):
             print "build false"
             sys.exit(1)
         execAnsible(serverName, "stop", env)

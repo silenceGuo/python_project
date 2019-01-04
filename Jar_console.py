@@ -51,14 +51,17 @@ def execAnsible(serverName,action,env):
     if "FAILED" in stdout:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s False on %s " % ( serverName , action, env)
         return False
     elif "FAILED" in stderr:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s False on %s " % (serverName, action, env)
         return False
     else:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s True on %s " % (serverName, action, env)
         return True
 
 def deploy_node(serverName,env):
@@ -105,14 +108,15 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
-def checkMaster():
+def checkMaster(branchName):
     # 获取项目分支是否为master
     cmd = "git branch"
     stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
-    if "* master" in branch_list:
-        print "已经在master 分支"
+    branchName_str = "* %s" % branchName
+    if branchName_str in branch_list:
+        print "%s 分支" % branchName
         return True
     print "err", stderr
     return False
@@ -131,36 +135,32 @@ def isNoErr(stdout, stderr):
         print "stderr:%s" % stderr
         return True
 
-def gitupdate(serverName):
+def gitupdate(serverName,branchName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
 
     os.chdir(buildDir)
-    if not checkMaster():
-        checkout_m_cmd = "git checkout master"
-        print "切换至master分支"
+    if not checkMaster(branchName):
+        checkout_m_cmd = "git checkout %s" % branchName
+        print "切换至%s分支" % branchName
         ReturnExec(checkout_m_cmd)
 
-    print "获取 最新master分支"
+    print "获取 最新%s分支" % branchName
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
-    print "ss"
-    if not isNoErr(stdout, stderr):
-        print "%s exec err" % pull_m_cmd
-        # sys.exit()
-    else:
-        return True
+    # 判断是否有git 执行错误
+    return isNoErr(stdout, stderr)
 
 # jar 文件mavn构建
-def buildMaven(serverName):
+def buildMaven(serverName,branchName):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
     # print gitupdate(serverName)
     # sys.exit()
-    if not gitupdate(serverName):
+    if not gitupdate(serverName,branchName):
         print "git update is err"
         sys.exit(1)
 
@@ -387,9 +387,9 @@ def main(serverName,branchName,action,envName):
         execAnsible(serverName, action, envName)
     elif action == "build":
 
-        buildMaven(serverName)
+        buildMaven(serverName,branchName)
     elif action == "deploy":
-        if not buildMaven(serverName):
+        if not buildMaven(serverName,branchName):
             print "build false"
             sys.exit(1)
         execAnsible(serverName, "stop", envName)
