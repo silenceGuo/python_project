@@ -35,14 +35,13 @@ def execSh(cmd):
 
 def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
-    # print serverNameDict
     print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
     if env == "dev":
         deploynode = serverNameDict["devnodename"]
     if env == "test":
         deploynode = serverNameDict["testnodename"]
-    if env == "pro":
+    if env == "pre":
         deploynode = serverNameDict["pronodename"]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
@@ -51,16 +50,18 @@ def execAnsible(serverName,action,env):
     if "FAILED" in stdout:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s False on %s " % ( serverName , action, env)
         return False
     elif "FAILED" in stderr:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s False on %s " % ( serverName , action, env)
         return False
     else:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
+        print "%s %s True on %s " % (serverName, action, env)
         return True
-
 def deploy_node(serverName,env):
     print "发送文件至远程节点 "
     # nodeName = projectDict[serverName]["deploygroupname"]
@@ -71,7 +72,7 @@ def deploy_node(serverName,env):
         deploynode = serverNameDict["devnodename"]
     if env == "test":
         deploynode = serverNameDict["testnodename"]
-    if env == "pro":
+    if env == "pre":
         deploynode = serverNameDict["pronodename"]
     # print deployDir
     # sys.exit()
@@ -105,17 +106,19 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
-def checkMaster():
+def checkMaster(branchName):
     # 获取项目分支是否为master
     cmd = "git branch"
     stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
-    if "* master" in branch_list:
-        print "已经在master 分支"
+    branchName_str = "* %s" % branchName
+    if branchName_str in branch_list:
+        print "%s 分支" % branchName
         return True
     print "err", stderr
     return False
+
 
 def isNoErr(stdout, stderr):
     # 有错误返回false
@@ -131,36 +134,32 @@ def isNoErr(stdout, stderr):
         print "stderr:%s" % stderr
         return True
 
-def gitupdate(serverName):
+def gitupdate(serverName,branchName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
 
     os.chdir(buildDir)
-    if not checkMaster():
-        checkout_m_cmd = "git checkout master"
-        print "切换至master分支"
+    if not checkMaster(branchName):
+        checkout_m_cmd = "git checkout %s" % branchName
+        print "切换至%s分支" % branchName
         ReturnExec(checkout_m_cmd)
 
-    print "获取 最新master分支"
+    print "获取 最新%s分支" % branchName
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
-    print "ss"
-    if not isNoErr(stdout, stderr):
-        print "%s exec err" % pull_m_cmd
-        # sys.exit()
-    else:
-        return True
+    # 判断是否有git 执行错误
+    return isNoErr(stdout, stderr)
 
 # jar 文件mavn构建
-def buildMaven(serverName):
+def buildMaven(serverName,branchName):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
     # print gitupdate(serverName)
     # sys.exit()
-    if not gitupdate(serverName):
+    if not gitupdate(serverName,branchName):
         print "git update is err"
         sys.exit(1)
 
@@ -387,9 +386,9 @@ def main(serverName,branchName,action,envName):
         execAnsible(serverName, action, envName)
     elif action == "build":
 
-        buildMaven(serverName)
+        buildMaven(serverName,branchName)
     elif action == "deploy":
-        if not buildMaven(serverName):
+        if not buildMaven(serverName,branchName):
             print "build false"
             sys.exit(1)
         execAnsible(serverName, "stop", envName)
@@ -398,19 +397,16 @@ def main(serverName,branchName,action,envName):
         deploy_node(serverName, envName)
         if not execAnsible(serverName, "start", envName):
             sys.exit(1)
+        #execAnsible(serverName, "start", envName)
     elif action == "restart":
-        # execAnsible(serverName, action, envName)
         execAnsible(serverName, "stop", envName)
 
         if not execAnsible(serverName, "start", envName):
-            print "ss"
             sys.exit(1)
-        # else:
-        #     sys.exit()
     elif action == "start":
-        if not execAnsible(serverName, "start", envName):
-            sys.exit(1)
-
+     
+       if not  execAnsible(serverName, action, envName):
+           sys.exit(1)
     elif action == "stop":
         execAnsible(serverName, action, envName)
     elif action == "back":
@@ -422,8 +418,7 @@ def main(serverName,branchName,action,envName):
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
-
-# 读取执行操作服务顺序文件
+# 读取启动服务顺序文件
 def readfile(file):
     if not os.path.exists(file):
         return False
@@ -433,23 +428,23 @@ def readfile(file):
                 return [i.strip().split(":")[1], i.strip().split(":")[0]]
             return False
 
-# 写执行操作服务顺序文件
+# 写启动服务顺序文件
 def writhfile(file,info):
     if not os.path.exists(file):
-        # print file
+        print file
         with open(file, 'w+') as fd:
             fd.write(info)
     else:
         with open(file, 'w+')as fd:
             fd.write(info)
 
-# 清理执行操作服务顺序文件
+# 清理启动服务顺序文件
 def cleanfile(file):
     with open(file, 'w+') as fd:
         fd.write("")
 
 if __name__ == "__main__":
-    serverconf = "server.conf"
+    serverconf = "/data/init/server.conf"
     confDict = JarService.init(serverconf)["conf"]
     # print confDict
     global mvn, java, nohup,ansibleHost,python,remote_py
@@ -459,9 +454,9 @@ if __name__ == "__main__":
     python = confDict["python"]
     java = confDict["java"]
     nohup = confDict["nohup"]
+    startConf = confDict["start_server"]
     ansibleHost = confDict["ansibile_host"]
     jarConf = confDict["jar_conf"]
-    startConf = confDict["start_server"]
     projectDict = JarService.readConf(jarConf)
     options, args = JarService.getOptions()
     action = options.action
@@ -481,13 +476,10 @@ if __name__ == "__main__":
         sys.exit()
     else:
         if serverName == "all":
-            # 获取执行失败服务索引
             if readfile(startConf):
                 serName, point = readfile(startConf)
             else:
                 point = 0
-
-            # 进行升序排列取到列表
             serverlist = sorted(projectDict.keys())
             # 从上次执行失败的位置开始执行
             for serName in serverlist[int(point):]:
@@ -496,7 +488,10 @@ if __name__ == "__main__":
                 writhfile(startConf, info)
                 main(serName, branchName, action, envName)
             cleanfile(startConf)
-
+            # 进行升序排列
+           # serverlist = sorted(projectDict.keys())
+           # for serName in serverlist:
+            #    main(serName, branchName, action, envName)
         else:
             if not projectDict.has_key(serverName):
                 print "没有服务名：%s" % serverName

@@ -8,6 +8,7 @@ import ConfigParser
 from optparse import OptionParser
 from subprocess import PIPE, Popen
 import time
+import datetime
 import os
 import sys
 import xml.dom.minidom
@@ -15,7 +16,6 @@ import signal
 import codecs
 import shutil
 import zipfile
-import time
 import json
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -341,7 +341,8 @@ def stopServer(serverName):
         return True
 
 def startServer(serverName):
-
+    now = datetime.datetime.now()
+    data_time = now.strftime('%Y-%m-%d')
     serverNameDict = projectDict[serverName]
     deploydir = serverNameDict["deploydir"]
     # deploydir = serverNameDict["deploydir"]
@@ -362,13 +363,15 @@ def startServer(serverName):
         print "配置文件中为配置java内存参数参数默认512m "
         xms = "512m"
         xmx = "512m"
-    serverlogpath = os.path.join(logsPath, serverName)
+
+    serverlogpath = os.path.join(logsPath, "%s-%s.log") % (serverName, data_time)
+
     if getPid(serverName):
         print "%s 已经启动,请先停止！ " % serverName
         return False
     else:
         print "启动服务：%s" % serverName
-        cmd = "%s %s -Xms%s -Xmx%s -jar %s --spring.profiles.active=%s >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,envName,serverlogpath)
+        cmd = "%s %s -Xms%s -Xmx%s -jar %s --spring.profiles.active=%s >%s 2>&1 &" % (nohup,java,xms, xmx, deployjar,envName,serverlogpath)
         # cmd = "%s %s -Xms%s -Xmx%s -jar %s  >%s.out 2>&1 &" % (nohup,java,xms, xmx, deployjar,serverlogpath)
         print cmd
         # sys.exit()
@@ -636,12 +639,12 @@ def main(serverName,branchName,action):
         installServerName(serverName)
     elif action == "restart":
         stopServer(serverName)
-        startServer(serverName)
+        if not  startServer(serverName):
+            return False
+        else:
+           return True	
     elif action == "start":
-        # print startServer(serverName)
         if not startServer(serverName):
-            # print "启动失败"
-            # sys.exit(1)
             return False
         else:
             return True
@@ -687,11 +690,12 @@ def init(serverconf):
     else:
         print "%s is not exists" % serverconf
         print server_conf_str
-        sys.exit(1)
+        sys.exit()
 
 if __name__ == "__main__":
 
-    serverconf = "/python-project/server.conf"
+    # serverconf = "/data/init/server.conf"
+    serverconf = "server.conf"
     # print os.getcwd()
     # sys.exit()
     confDict = init(serverconf)["conf"]
@@ -736,7 +740,7 @@ if __name__ == "__main__":
     else:
         if action == "start" or action == "restart" or action == "rollback":
             if not envName:
-                print "参数执行操作 -e envName [dev,test,pro]"
+                print "参数执行操作 -e envName [dev,test,pre]"
                 sys.exit()
 
         if serverName == "all":

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #！-*-coding:utf-8 -*-
 #!@Date    : 2018/12/20 0020 下午 17:05
 #!@Author : Damon.guo
@@ -41,7 +41,7 @@ def execAnsible(serverName,action,env):
         deploynode = serverNameDict["devnodename"]
     if env == "test":
         deploynode = serverNameDict["testnodename"]
-    if env == "pro":
+    if env == "prod":
         deploynode = serverNameDict["pronodename"]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (deploynode, ansibleHost, python, remote_py, action, serverName, env)
@@ -73,30 +73,31 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
-def checkMaster():
+def checkMaster(branchName):
     # 获取项目分支是否为master
     cmd = "git branch"
     stdout, stderr = execSh(cmd)
     print "out:", stdout
     branch_list = [i.strip() for i in stdout.split("\n") if i]
-    if "* master" in branch_list:
-        print "已经在master 分支"
+    branchName_str = "* %s" % branchName
+    if branchName_str in branch_list:
+        print "%s 分支" % branchName
         return True
     print "err", stderr
     return False
 
-def gitupdate(serverName):
+def gitupdate(serverName,branchName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
 
     os.chdir(buildDir)
-    if not checkMaster():
-        checkout_m_cmd = "git checkout master"
-        print "切换至master分支"
+    if not checkMaster(branchName):
+        checkout_m_cmd = "git checkout %s" % branchName
+        print "切换至%s分支" % branchName
         ReturnExec(checkout_m_cmd)
 
-    print "获取 最新master分支"
+    print "获取 最新%s分支" % branchName
     pull_m_cmd = "git pull"
     stdout, stderr = execSh(pull_m_cmd)
     # 判断是否有git 执行错误
@@ -118,13 +119,13 @@ def isNoErr(stdout, stderr):
         return True
 
 # jar 文件mavn构建
-def buildNode(serverName,env):
+def buildNode(serverName,env,branchName):
 
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
     buildDir = serverNameDict["builddir"]
-    print gitupdate(serverName)
-    if not gitupdate(serverName):
+    print gitupdate(serverName,branchName)
+    if not gitupdate(serverName,branchName):
         print 'git is updata err'
         sys.exit()
     os.chdir(buildDir)
@@ -136,8 +137,8 @@ def buildNode(serverName,env):
         print "%s exc err" % cmd_install
         sys.exit()
 
-    # cmd = "%s run %s" % (npm, env)
-    cmd = "%s run debugbuild" % npm
+    cmd = "%s run build--%s" % (npm, env)
+   # cmd = "%s run debugbuild" % npm
 
     print "构建服务：%s" % serverName
     # sys.exit()
@@ -153,7 +154,7 @@ def delployDir(serverName,env):
         deploynode = serverNameDict["devnodename"]
     if env == "test":
         deploynode = serverNameDict["testnodename"]
-    if env == "pro":
+    if env == "prod":
         deploynode = serverNameDict["pronodename"]
 
     copyFILE = "ansible %s -i %s -m synchronize -a 'src=%s dest=%s delete=yes'" % (deploynode, ansibleHost, buildDir, deployDir)
@@ -347,16 +348,15 @@ def main(serverName,branchName,action,env):
         # 用于远端机器部署项目
         execAnsible(serverName, action, env)
     elif action == "build":
-         buildNode(serverName,env)
+         buildNode(serverName,env,branchName)
     elif action == "deploy":
-        if not buildNode(serverName, env):
+        if not buildNode(serverName,env, branchName):
             print "build false"
             sys.exit(1)
-        execAnsible(serverName, "stop", env)
         execAnsible(serverName, "back", env)
         # 部署新包至目标节点
         delployDir(serverName, env)
-        execAnsible(serverName, "start", env)
+        #execAnsible(serverName, "start", env)
     elif action == "restart":
         execAnsible(serverName, action, env)
     elif action == "start":
@@ -374,7 +374,7 @@ def main(serverName,branchName,action,env):
         sys.exit()
 
 if __name__ == "__main__":
-    serverconf = "nodeServer.conf"
+    serverconf = "/data/init/nodeServer.conf"
     confDict = nodeService.init(serverconf)["conf"]
     # print confDict
     global mvn, java, nohup,ansibleHost,python,remote_py
@@ -403,8 +403,8 @@ if __name__ == "__main__":
         print "参数执行操作 -e envName [dev,test,pro]"
         sys.exit()
     else:
-        if not envName in ["dev","test","pro"]:
-            print "参数执行操作 -e envName [dev,test,pro]"
+        if not envName in ["dev","test","prod"]:
+            print "参数执行操作 -e envName [dev,test,prod]"
             sys.exit()
         if serverName == "all":
             # 进行升序排列

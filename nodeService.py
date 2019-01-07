@@ -316,7 +316,7 @@ def installServerName(serverName):
 def getPid(serverName):
     deployDir = projectDict[serverName]["deploydir"]
 
-    cmd = "pgrep -f %snode_modules/.bin/nuxt" % deployDir
+    cmd = "pgrep -f %snode_modules/.bin/" % deployDir
     # cmd = "pgrep -f %s/war/" % deployDir
     pid, stderr = execSh(cmd)
     if pid:
@@ -380,7 +380,7 @@ def startServer(serverName):
             print "ster:%s" % stderr
         for i in xrange(1, checkTime + 1):
             print "循环检查服务启动状态：%s 次" % i
-            time.sleep(checkTime)
+            time.sleep(checkTime+30)
             getPid(serverName)
 
         if getPid(serverName):
@@ -389,6 +389,7 @@ def startServer(serverName):
             return True
         else:
             print "目标服务器尝试执行 'ln -s %s /usr/bin/node' 在重试" % node
+            print "目标服务器尝试执行 'ln -s %s /usr/bin/npm' 在重试" % npm
             print "启动服务： %s 失败" % serverName
             return False
 
@@ -665,9 +666,9 @@ def main(serverName, branchName, action):
         else:
             print "%s has back version:%s" % (serverName, versionlist)
     elif action == "rollback":
-        stopServer(serverName)
+        #stopServer(serverName)
         rollBack(serverName)
-        startServer(serverName)
+       # startServer(serverName)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit()
@@ -703,7 +704,7 @@ def init(serverconf):
 
 if __name__ == "__main__":
 
-    serverconf = "/python-project/nodeServer.conf"
+    serverconf = "/data/init/nodeServer.conf"
     # print os.getcwd()
     # sys.exit()
     confDict = init(serverconf)["conf"]
