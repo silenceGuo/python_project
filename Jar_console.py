@@ -74,8 +74,7 @@ def deploy_node(serverName,env):
         deploynode = serverNameDict["testnodename"]
     if env == "pre":
         deploynode = serverNameDict["pronodename"]
-    # print deployDir
-    # sys.exit()
+
     deployFile = projectDict[serverName]["jar"]
 
     # deployFile = os.path.join(deployDir,deployFile)
