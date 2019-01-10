@@ -106,11 +106,11 @@ def gitupdate(serverName,branchName):
 
 def isNoErr(stdout, stderr):
     # 有错误返回false
-    if not "error" or "fatal" in stdout:
+    if not "error".upper() or "fatal" in stdout:
         print "stdout:%s" % stdout
 
         return False
-    elif not "error" or "fatal" in stderr:
+    elif not "error".upper() or "fatal" in stderr:
         print "stderr:%s" % stderr
         return False
     else:
@@ -233,7 +233,7 @@ def initProject(serverName):
     # 新机器 或者新目录项目部署
 
     print "master install:%s" % serverName
-    print projectDict
+    # print projectDict
     builddir = projectDict[serverName]["builddir"]
     if not os.path.exists(builddir):
         os.makedirs(builddir)
@@ -245,7 +245,7 @@ def initProject(serverName):
     stdout, stderr = execSh("git status .")
     if stdout:
         print"out：\n%s" % stdout
-        print "当前目录：%s,已经存在git仓库请检查!" % deployDir
+        print "当前目录：%s,已经存在git仓库请检查!" % builddir
         return True
     if stderr:
         print "没有git仓库，下一步"
@@ -374,7 +374,8 @@ def main(serverName,branchName,action,env):
         sys.exit()
 
 if __name__ == "__main__":
-    serverconf = "/data/init/nodeServer.conf"
+    # serverconf = "/data/init/nodeServer.conf"
+    serverconf = "nodeServer.conf"
     confDict = nodeService.init(serverconf)["conf"]
     # print confDict
     global mvn, java, nohup,ansibleHost,python,remote_py
@@ -403,7 +404,7 @@ if __name__ == "__main__":
         print "参数执行操作 -e envName [dev,test,pro]"
         sys.exit()
     else:
-        if not envName in ["dev","test","prod"]:
+        if not envName in ["dev", "test", "prod"]:
             print "参数执行操作 -e envName [dev,test,prod]"
             sys.exit()
         if serverName == "all":

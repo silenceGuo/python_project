@@ -50,12 +50,12 @@ def execAnsible(serverName,action,env):
     if "FAILED" in stdout:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
-        print "%s %s False on %s " % ( serverName , action, env)
+        print "%s %s False on %s " % (serverName, action, env)
         return False
     elif "FAILED" in stderr:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
-        print "%s %s False on %s " % ( serverName , action, env)
+        print "%s %s False on %s " % (serverName, action, env)
         return False
     else:
         print "stdout:%s" % stdout
@@ -122,6 +122,7 @@ def checkMaster(branchName):
 def isNoErr(stdout, stderr):
     # 有错误返回false
     errlist = ["error","fatal","error"]
+
     if not "error" or "fatal" in stdout:
         print "stdout:%s" % stdout
         return False
@@ -283,7 +284,7 @@ def initProject(serverName):
     stdout, stderr = execSh("git status .")
     if stdout:
         print"out：\n%s" % stdout
-        print "当前目录：%s,已经存在git仓库请检查!" % deployDir
+        print "当前目录：%s,已经存在git仓库请检查!" % builddir
         return True
     if stderr:
         print "没有git仓库，下一步"
