@@ -93,12 +93,17 @@ def main(file,dstpath):
 
 if __name__ == "__main__":
     # 源文件 主要 要保证总账单清理多余的行 公司名称列与其他表格名称一直，
-    file = "D:/kilimall_report/break_report/2019年1月乌干达账单拆分1.xlsx".decode("utf-8")
-    # file = "D:/kilimall_report/break_report/12ng1.xlsx".decode("utf-8")
-    # readExcelSUB(file)
+    file = "D:/kilimall_report/break_report/2019年1月ke账单拆分(1).xlsx".decode("utf-8")
+
+    # 把原文件名字取出来，作为目标目录名
+    s = file.split("/")[-1].split(".")[0]
+    print s
     # sys.exit()
     # 输出路径
-    dstpath = "D:/kilimall_report/break_report/201901ke"
+    dir ="D:/kilimall_report/break_report/"
+
+    dstpath = os.path.join(dir, s)
+
     if not os.path.exists(dstpath):
         os.makedirs(dstpath)
     main(file, dstpath)
