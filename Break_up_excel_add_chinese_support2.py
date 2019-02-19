@@ -28,13 +28,18 @@ def readExcelSUB(File):
         print "%s is not exitis" % File
         sys.exit(1)
     read_temple = pd.ExcelFile(File, dtype=str)
+    # print read_temple.parse("账单明细")
     wb = openpyxl.load_workbook(File)
     sheets = wb.get_sheet_names()
     sheetobjectDict = {}
-
+    # sys.exit()
     for sheet in sheets:
+
         read_temple_sheet = read_temple.parse(sheet.decode("utf-8"))
+        # if sheet == "账单明细".decode("utf-8"):
+        #     read_temple_sheet['订单号'.decode("utf-8")] = read_temple_sheet['订单号'.decode("utf-8")].astype('str')
         sheetobjectDict[sheet] = read_temple_sheet
+        print read_temple_sheet
 
     return sheetobjectDict
 
@@ -87,10 +92,13 @@ def main(file,dstpath):
         writeExcel(sheetobjectDict,dstpath,sheetlist, Company)
 
 if __name__ == "__main__":
-    # 源文件
-    file = "D:/kilimall_report/break_report/12ng1-副本.xlsx".decode("utf-8")
-
+    # 源文件 主要 要保证总账单清理多余的行 公司名称列与其他表格名称一直，
+    file = "D:/kilimall_report/break_report/2019年1月乌干达账单拆分1.xlsx".decode("utf-8")
+    # file = "D:/kilimall_report/break_report/12ng1.xlsx".decode("utf-8")
+    # readExcelSUB(file)
+    # sys.exit()
     # 输出路径
-    dstpath = "D:/kilimall_report/break_report/ke"
-
+    dstpath = "D:/kilimall_report/break_report/201901ke"
+    if not os.path.exists(dstpath):
+        os.makedirs(dstpath)
     main(file, dstpath)
