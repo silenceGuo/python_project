@@ -26,35 +26,43 @@ server_conf_str = """
 
 [conf]
 # jar服务和node服务的配置文件
-jarconf = /python-project/jar.conf
+jar_conf = jar.conf
+# 记录启动失败服务名字和索引号
+start_server = start.txt
 # 备份上一次的应用目录
-bakdir = /app/bak/
+bak_dir = /app/bak/
 # 备份文件控制版本数
-keepBakNum = 5
+bak_num = 5
 # 服务检查次数
-checktime = 3
+check_time = 3
 # 日志路径
-logpath = /data/logs/
+logs_path = /data/logs/
 #ansible 主机文件
-ansibilehostfile = /etc/ansible/hosts
+ansibile_host = /etc/ansible/hosts
 # maven 执行命令路径
-maven_home = /app/apache-maven-3.5.0/bin/mvn
+mvn = /app/apache-maven-3.5.0/bin/mvn
 # java 执行命令路径
-java_home = /app/jdk1.8.0_121/bin/java
+java = /app/jdk1.8.0_121/bin/java
 # nohup 命令路径
 nohup = /usr/bin/nohup
 # node执行命令路径
-node_home = /data/app/node-v8.12.0/bin/node
-# 定义远程执行脚本路径
-python_dir = /python-project/updateJarService.py
+node = /data/app/node-v8.12.0/bin/node
+npm = /data/app/node-v8.12.0/bin/npm
 # pthon 执行命令路径
-python_home = /usr/bin/python
+python = /usr/bin/python
+# 定义远程执行脚本路径 ，
+remote_py = /python-project/JarService.py
 """
 jar_conf_str = """
 [1-activity-eureka]
-deployDir = /kilimall/procjet/activity-cloud/activity-eureka/
-deployGroupName = node1
-jar = /kilimall/procjet/activity-cloud/activity-eureka/target/activity-eureka-1.0.1.jar
+deployDir = /kilimall/project/activity-cloud/1-activity-eureka/
+buildDir = /kilimall/project/activity-cloud/activity-eureka/
+testNodeName = node2
+devNodeName = node2
+proNodeName = node1
+xms = 256m
+xmx = 256m
+jar = /kilimall/project/activity-cloud/activity-eureka/target/activity-eureka-1.0.1.jar
 xms = 256m
 xmx = 256m
 """
@@ -77,8 +85,9 @@ def getOptions():
 
     parser.add_option("-b", "--branchName", action="store",
                       dest="branchName",
-                      default=False,
+                      default="master",
                       help="-b branchName")
+
     # jar 服务启动区分环境 读取的配置不一样
     parser.add_option("-e", "--envName", action="store",
                       dest="envName",
@@ -310,7 +319,9 @@ def getPid(serverName):
         #string(pid,)
         print "取得 PID:%s" % pid
         return int(pid)
-
+    else:
+        print "%s is stoped" %serverName
+        return False
 def stopServer(serverName):
     # 停止服务 先正常停止，多次检查后 强制杀死！
     pid = getPid(serverName)
@@ -639,7 +650,7 @@ def main(serverName,branchName,action):
         installServerName(serverName)
     elif action == "restart":
         stopServer(serverName)
-        if not  startServer(serverName):
+        if not startServer(serverName):
             return False
         else:
            return True	
@@ -650,6 +661,9 @@ def main(serverName,branchName,action):
             return True
     elif action == "stop":
         stopServer(serverName)
+    elif action == "status":
+        getPid(serverName)
+        # stopServer(serverName)
     elif action == "back":
          backWar(serverName)
     elif action == "getback":
@@ -668,13 +682,11 @@ def main(serverName,branchName,action):
 
 # 输出服务配置文件中的服务名
 def printServerName(projectDict):
-    serverNameList = []
-    # print projectDict
-    for serverName, serverNameDict in projectDict.items():
-        print "可执行服务名：%s" %  serverName
-        serverNameList.append(serverName)
-    #返回服务名列表，可以在后期处理进行排序，考虑服务启动的顺序
-    return serverNameList
+
+    serverlist = sorted(projectDict.keys())
+    for serverName in serverlist:
+        print "可执行服务名：%s" % serverName
+    return serverlist
 
 #检查文件是否存在
 def fileExists(filePath):
@@ -736,7 +748,6 @@ if __name__ == "__main__":
         print "参数服务名 -n servername "
         printServerName(projectDict)
         sys.exit()
-
     else:
         if action == "start" or action == "restart" or action == "rollback":
             if not envName:
