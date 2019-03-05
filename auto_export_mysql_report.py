@@ -30,7 +30,7 @@ user = "root"
 dbpass = "123456"
 
 port = 3306
-
+"""通过传入的任务类型 ，自动执行指定sql语句，将结果保存为execl表格自动发送邮件到邮件列表的人"""
 
 # 检查文件是否存在
 def fileExists(filePath):
