@@ -28,32 +28,30 @@ def readExcelSUB(File):
         print "%s is not exitis" % File
         sys.exit(1)
     read_temple = pd.ExcelFile(File, dtype=str)
-    # print read_temple.parse("账单明细")
-    wb = openpyxl.load_workbook(File)
-    sheets = wb.get_sheet_names()
+    # read_temple = pd.ExcelFile(File, dtype=str, low_memory=False)
+    sheets = read_temple.sheet_names
+
     sheetobjectDict = {}
     # sys.exit()
     for sheet in sheets:
-
         read_temple_sheet = read_temple.parse(sheet.decode("utf-8"))
         # if sheet == "账单明细".decode("utf-8"):
         #     read_temple_sheet['订单号'.decode("utf-8")] = read_temple_sheet['订单号'.decode("utf-8")].astype('str')
         sheetobjectDict[sheet] = read_temple_sheet
-        print read_temple_sheet
+        # print read_temple_sheet
 
-    return sheetobjectDict
+    return sheets, sheetobjectDict
 
 # 拆分execl 已公司名称拆分
 def writeExcel(sheetobjectDict,dstpath,sheetName,company_name):
     # 过滤条件
     filter_li = '公司名称'.decode("utf-8")
 
-    path = os.path.join(dstpath, "%s_%s.xlsx".decode("utf-8")) % (company_name, "账单")
+    path = os.path.join(dstpath, "%s_%s_%s.xlsx".decode("utf-8")) % (souerFilename, company_name, "账单")
 
     writer = pd.ExcelWriter(path)
 
     for sheet in sheetName:
-
         read_temple_sheet = sheetobjectDict[sheet]
         try:
             # 过滤条件
@@ -67,7 +65,7 @@ def writeExcel(sheetobjectDict,dstpath,sheetName,company_name):
     writer.save()
 
 
-def getCompanyName(File,sheetobjectDict):
+def getCompanyName(sheetobjectDict):
     # 获取总账单中的公司名 去重 返回公司列表
     company = sheetobjectDict["总账单".decode("utf-8")]["公司名称".decode("utf-8")]
     companylist = []
@@ -75,34 +73,33 @@ def getCompanyName(File,sheetobjectDict):
         companylist.append(r)
     company_unique = list(set(companylist))
 
-    # 获取sheetname 列表
-    wb = openpyxl.load_workbook(File)
-    sheets = wb.get_sheet_names()
-    return sheets, company_unique
+    return company_unique
 
 def main(file,dstpath):
     # 读取execl 整个文件所有的sheet
 
-    sheetobjectDict = readExcelSUB(file)
+    sheetlist,sheetobjectDict = readExcelSUB(file)
 
-    sheetlist, CompanyList = getCompanyName(file, sheetobjectDict)
 
+    CompanyList = getCompanyName(sheetobjectDict)
+    print "公司数量：%s" % len(CompanyList)
     for Company in CompanyList:
-        print Company
+        # print Company
         writeExcel(sheetobjectDict,dstpath,sheetlist, Company)
 
 if __name__ == "__main__":
     # 源文件 主要 要保证总账单清理多余的行 公司名称列与其他表格名称一直，
-    file = "D:/kilimall_report/break_report/2019年1月ke账单拆分(1).xlsx".decode("utf-8")
+    # file = "D:/kilimall_report/break_report/2019年2月ke账单拆分.xlsx".decode("utf-8")
+    file = "D:/kilimall_report/break_report/2019年2月乌干达账单拆分2.xlsx".decode("utf-8")
 
     # 把原文件名字取出来，作为目标目录名
-    s = file.split("/")[-1].split(".")[0]
-    print s
+    souerFilename = file.split("/")[-1].split(".")[0]
+    print souerFilename
     # sys.exit()
     # 输出路径
     dir ="D:/kilimall_report/break_report/"
 
-    dstpath = os.path.join(dir, s)
+    dstpath = os.path.join(dir, souerFilename)
 
     if not os.path.exists(dstpath):
         os.makedirs(dstpath)
