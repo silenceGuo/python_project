@@ -16,3 +16,4 @@ def t(s):
                 print("33")
                 pass
 t(s)
+print 's'
