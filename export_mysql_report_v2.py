@@ -347,6 +347,32 @@ def main(path,jobtype):
     sendMail(filnamelist, sendlist)
     # 执行脚本 执行数据库 执行类型定义
 
+# yml sql模板
+"""
+---
+sqlName: weichengyunfei_month
+db:
+- kilimall_kenya
+- kilimall_nigeria
+- kilimall_uganda
+rate: day
+send:
+- damon.guo@kilimall.com
+#- nick.wen@kilimall.com
+#- garcia.li@kilimall.com
+#- victor.ma@kilimall.com
+#- jimmyscm@kilimall.com
+#- kefeng.zhu@kilimall.com
+#- henry.han@kilimall.com
+#- ruby.chen@kilimall.com
+#- cindy.liu@kilimall.com
+sqltmp: "SELECT 
+  order_sn,store_id,store_name,liquidate_shipping_fee,
+  FROM_UNIXTIME(finnshed_time) AS 'finnshed time','尾程运费' AS 'fee type'
+FROM nc_order 
+WHERE order_state = 40 AND liquidate_shipping_fee > 0 
+AND finnshed_time > UNIX_TIMESTAMP('{start_time} 00:00:00') AND finnshed_time <= UNIX_TIMESTAMP('{end_time} 23:59:59');"
+"""
 if __name__ == "__main__":
 
     # sql yaml 路径
