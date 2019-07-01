@@ -14,11 +14,7 @@ import signal
 import codecs
 import shutil
 import zipfile
-#import shlex
-#import paramiko
-#import SSH
 import time
-import ConfigParser
 import yaml
 from optparse import OptionParser
 reload(sys)
@@ -29,18 +25,9 @@ bakDir = "/app/bak/"  # 备份上一次的应用目录
 baseTomcat = "/app/tomcat-8.5/"
 tomcatPrefix = ""
 ansibleHostFile = "/data/jks/host/iplist"
-#jenkinsDir = "/data/"
-# ansibleYaml = "/etc/ansible/tomcat.yml"
 
-# pyFile ="/home/scripts/deploy-liunx.py" # 指远程服务器执行py脚本路径
 checktime = 2  # 等待时间 和检查状态次数
 keepBakNum = 5  # 备份war包保留版本数
-
-# 取当前脚步的绝对路径，并拼装配置文件路径
-# dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
-# serverConfPath = os.path.join(dirname, serverConf)
-
-# ansibleHostFilePath = os.path.join(dirname, ansibleHostFile)
 
 def getOptions():
     parser = OptionParser()
@@ -70,16 +57,14 @@ def getOptions():
                       default=False,
                       help="-t typeName")
 
-
-
     options, args = parser.parse_args()
     return options, args
 
 def getDeploymentTomcatPath(serverName):
     deployServerDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
-    deployServerWarDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "war")
-    deployServerTomcatDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "tomcat")
-    deployServerXmlDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName,"tomcat/conf/server.xml")
+    deployServerWarDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "webapps/ROOT")
+    deployServerTomcatDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
+    deployServerXmlDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName,"conf/server.xml")
     bakServerDir = os.path.join(bakDir, "%s%s") % (tomcatPrefix, serverName)
     return {"deployServerDir":deployServerDir,
             "deployServerWarDir":deployServerWarDir,
@@ -113,49 +98,6 @@ def _init(confPath):
         if not chekPort():
             sys.exit()
 
-#读取配置文件
-def readConf(confPath):
-    cf = ConfigParser.ConfigParser()
-    try:
-        cf.read(confPath)
-    except ConfigParser.ParsingError,e:
-        print e
-        print "please check conf %s" % confPath
-        sys.exit()
-    serverNameList = []
-    serverNameDict = {}
-    portDict = {}
-
-    for serverName in cf.sections():
-        # print 'serverName:%s' % serverName
-        for optins in cf.options(serverName):
-            # 取服务名下的对应的配置和参数
-            if not confCheck(cf, serverName, optins):
-                sys.exit()
-            port = cf.get(serverName, optins)
-            portDict[optins] = port
-        serverNameDict[serverName] = portDict
-        serverNameList.append(serverNameDict)
-        # print serverNameDict
-        portDict = {}
-        serverNameDict = {}
-    return serverNameList
-
-def confCheck(cf, section, option):
-    if not cf.options(section):
-        print "no section: %s in conf file" % section
-        sys.exit()
-    try:
-        options = cf.get(section, option)
-    except ConfigParser.NoOptionError:
-        print "no option in conf %s " % option
-        sys.exit()
-    if not options:
-        print "options:(%s) is null in section:(%s)" % (option, section)
-        return False
-    else:
-        return True
-
 def getDir(dir):
     l1 = []
     for (root,dirs,files) in os.walk(dir, False):
@@ -183,8 +125,8 @@ def checkServer(serverName):
 def chekPort():
     from collections import Counter
     portList=[]
-    for serverNameDict in serverNameDictList:
-        for serverName, portDict in serverNameDict.iteritems():
+    # for serverNameDict in serverNameDictList:
+    for serverName, portDict in serverNameDictList.iteritems():
             shutdown_port = portDict["shutdown_port"]
             http_port = portDict["http_port"]
             ajp_port = portDict["ajp_port"]
@@ -192,6 +134,7 @@ def chekPort():
             portList.append(shutdown_port)
             portList.append(ajp_port)
 
+    print portList
     for port, num in Counter(portList).iteritems():
         if num > 1:
             print "%s is duplicated" % port
@@ -208,14 +151,14 @@ def installServer(serverName):
 
     serverList = []
     if not checkServer(serverName):
-        for serverNameDict in serverNameDictList:
-            for serName, optionsDict in serverNameDict.iteritems():
+        # for serverNameDict in serverNameDictList:
+        for serName, optionsDict in serverNameDictList.iteritems():
                 serverList.append(serName)
        # print serverList
         if serverName in serverList:
-            for serverNameDict in serverNameDictList:
-                if serverNameDict.has_key(serverName):
-                    optionsDict = serverNameDict[serverName]
+            # for serverNameDict in serverNameDictList:
+                if serverNameDictList.has_key(serverName):
+                    optionsDict = serverNameDictList[serverName]
                     try:
                         shutdown_port = optionsDict["shutdown_port"]
                         http_port = optionsDict["http_port"]
@@ -223,14 +166,17 @@ def installServer(serverName):
                     except KeyError, e:
                         # print e
                         print "please check conf file with :%s" % e
-                        continue
+                        # continue
                         #sys.exit(1)
                     deployDir = getDeploymentTomcatPath(serverName)["deployServerDir"]  # 部署工程目录
+                    print deployDir
+                    # sys.exit()
 
-                    chownCmd = "chown -R tomcat:tomcat %s" % deployDir  # 目录权限修改
+
                     # 从标准tomcat 复制到部署目录
                     copyBaseTomcat(serverName)
                     # 修改部署tomcat server.xml配置文件
+                    chownCmd = "chown -R tomcat:tomcat %s" % deployDir  # 目录权限修改
                     changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
                     stdout, stderr = execSh(chownCmd)
                     if stdout:
@@ -238,22 +184,32 @@ def installServer(serverName):
                     if stderr:
                         print stderr
                     print"%s install sucess" % serverName
-                    break
+                    # break
         else:
             print "serverName:%s is errr" %serverName
     else:
         print "%s is installed" % serverName
 
+def chown(serverName):
+    chownCmd = "chown -R tomcat:tomcat %s" % deployDir  # 目录权限修改
+    changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
+    stdout, stderr = execSh(chownCmd)
+    if stdout:
+        print stdout
+    if stderr:
+        print stderr
+    print"%s install sucess" % serverName
+
 def uninstallServer(serverName):
     # serverNameDictList = readConf(serverConfPath)
     if checkServer(serverName):
-        for serverNameDict in serverNameDictList:
+        # for serverNameDict in serverNameDictList:
 
-            if serverNameDict. has_key(serverName):
+            if serverNameDictList.has_key(serverName):
                 stopServer(serverName)
                 cleanDeployDir(serverName)
                 print "%s is uninstall sucess!" % serverName
-                break
+
     else:
         print "%s is not instell or is err" % serverName
 
@@ -379,20 +335,24 @@ def copyBaseTomcat(serverName):
 # 修改xml 配置文件
 def changeXml(serverName,shutdown_port="8128",http_port="8083",ajp_port="8091"):
     deployPath = getDeploymentTomcatPath(serverName)
+    print deployPath
     warDir = deployPath["deployServerWarDir"]  # 解压的war 目录
     xmlpath = deployPath["deployServerXmlDir"]
+    print xmlpath
+    # sys.exit()
     domtree = xml.dom.minidom.parse(xmlpath)
     collection = domtree.documentElement
     service = collection.getElementsByTagName("Service")
-    collection.setAttribute("port", shutdown_port)  # shutdown port
+    collection.setAttribute("port", str(shutdown_port))  # shutdown port
     context = collection.getElementsByTagName("Context")  # 设置网站目录
     context[0].setAttribute("docBase", warDir)
     for i in service:
         connector = i.getElementsByTagName("Connector")
         appdeploy = i.getElementsByTagName("Host")
         appdeploy[0].setAttribute("appBase", "webapps") #部署目录 默认为webapps
-        connector[0].setAttribute("port", http_port)  # http port
-        connector[1].setAttribute("port", ajp_port)  # ajp port
+        connector[0].setAttribute("port", str(http_port))  # http port
+        # print type(http_port)
+        connector[1].setAttribute("port", str(ajp_port))  # ajp port
     outfile = file(xmlpath, 'w')
     write = codecs.lookup("utf-8")[3](outfile)
     domtree.writexml(write, addindent=" ", encoding='utf-8')
@@ -563,6 +523,13 @@ def rollBack(serverName,versionId=""):
             shutil.rmtree(deployRootWar)
             print "clean history file: %s " % deployRootWar
         copyDir(bakdeployWar, deployRootWar)
+        chownCmd = "chown -R tomcat:tomcat %s" % deployRootWar  # 目录权限修改
+        stdout, stderr = execSh(chownCmd)
+        if stdout:
+            print stdout
+        if stderr:
+            print stderr
+        print"%s install sucess" % serverName
         if os.path.exists(deployRootWar):
             print "RollBack Sucess,update serverName:%s" % serverName
             print "Rollback Version:%s " % versionId
@@ -587,7 +554,7 @@ def readConfAnsible(file):
         groupNameDict[groupName] = iplist
     return groupNameDict
 
-def sendWarToNode(serverName,grouName):
+def sendWarToNode(serverName,envName):
     if not os.path.exists(ansibleHostFile):
         print "serverconf is not exists,check serverconf %s " % ansibleHostFile
         print """ %s like this:
@@ -609,7 +576,7 @@ def sendWarToNode(serverName,grouName):
     groupDict = readConfAnsible(ansibleHostFile)  # 回去执行IP
     tomcatWar = getDeploymentTomcatPath(serverName)["deployServerWarDir"] #下发的目标路径
     try:
-        iplist = groupDict[grouName]
+        iplist = groupDict[envName]
     except:
         print "check file: %s" % ansibleHostFile
         sys.exit()
@@ -642,7 +609,7 @@ def sendWarToNode(serverName,grouName):
                     print stdout
                 break
 
-def main(action,serverName,version,groupName):
+def main(action,serverName,version,env):
     # action = action.lower()
     # print action
     if action =="install":
@@ -686,15 +653,15 @@ if __name__ == "__main__":
     version = options.versionId
     serverName = options.serverName
     groupName = options.groupName
-    print (readYml(serverConf_test))
+    # print (readYml(serverConf_test))
     # sys.exit()
     _init(serverConf_test)
 
 
     if serverName == "all":
         for serverNameDict in serverNameDictList:
-            for seName,portDict in serverNameDict.iteritems():
-                 main(action, seName, version,groupName)
+            for seName, portDict in serverNameDict.iteritems():
+                 main(action, seName, version, groupName)
     else:
         main(action, serverName, version,groupName)
 

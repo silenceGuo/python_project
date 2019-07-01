@@ -1,7 +1,7 @@
 ---
 erueka1:
     startNum: 1
-    buildDir: /app/erueka1
+    buildDir: /app/erueka1-build
     deployDir: /app/erueka1
     giturl: tes.url
     testNodeName:
