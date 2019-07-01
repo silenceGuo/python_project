@@ -1,0 +1,18 @@
+---
+erueka1:
+    startNum: 1
+    buildDir: /app/erueka1
+    deployDir: /app/erueka1
+    giturl: tes.url
+    testNodeName:
+        - host_test
+    devNodeName:
+        - node2
+    proNodeName:
+        - node1
+    war: platform-kedms.war
+    http_port: 8030
+    ajp_port: 8031
+    shutdown_port: 8032
+    xms: 512m
+    xmx: 512m
