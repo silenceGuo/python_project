@@ -27,17 +27,6 @@ import yaml
 import xlsxwriter
 
 
-# 数据库连接信息
-host = ''
-user = ""
-dbpass = ""
-port = 3306
-# 发送邮件用户信息
-username = ''
-password = ''
-
-
-
 # 检查文件是否存在
 def fileExists(filePath):
     if not os.path.exists(filePath):
@@ -165,9 +154,11 @@ def connMysql(dbname):
     cur = conn.cursor()
     return conn, cur
 
-def execMysql(cursor, mysqlstr):
+def execMysql(cursor, mysqlstr,timezone):
     # 获取游数据库标.
-    cursor.execute('SET time_zone = "+3:00"')
+    timezonesql = 'SET time_zone = "{timezone}"'.format(timezone=timezone)
+    # cursor.execute('SET time_zone = "+3:00"')
+    cursor.execute(timezonesql)
     cursor.execute(mysqlstr)
     res = cursor.fetchall()
     return res
@@ -251,11 +242,11 @@ def listdir(path):
         # sqllist.append(readMysql_fromFile(file))
     return sqlDict
 
-def sub_main(dbname,filename,sql):
+def sub_main(dbname,filename,sql,timezone):
    # 执行sql 导出导文件
     today = str(datetime.date.today())
     conn, cur = connMysql(dbname)
-    res = execMysql(cur, sql)
+    res = execMysql(cur, sql,timezone)
 
     result_list = list(res)
     # 设设置 数据格式str防止在execl 长的int 为乱码
@@ -309,6 +300,7 @@ def main(path,jobtype):
         dblist = ymldict["db"]
         """ 配置每个 任务脚本的 需要使用的日期类型，"""
         rate = ymldict["rate"]
+        timezone = ymldict['timezone']
 
         if rate == "day":
             start_time = Yesterday
@@ -340,7 +332,7 @@ def main(path,jobtype):
 
             filname = os.path.join(dirname, "%s-%s-%s.xlsx") % (today, dbname, sqlname)
             # print sql
-            sub_main(dbname, filname, sql)
+            sub_main(dbname, filname, sql,timezone)
             filnamelist.append(filname)
             print "export filename:%s" % filname
     "每个任务文件夹下的发送邮件的收件列表，会以最后执行的yaml 文件中的邮件列表生效。所以需要保持同一个任务文件下的yml文件中的send值是一样的"
@@ -355,6 +347,7 @@ db:
 - kilimall_kenya
 - kilimall_nigeria
 - kilimall_uganda
+timezone: +3:00
 rate: day
 send:
 - damon.guo@kilimall.com
@@ -374,7 +367,14 @@ WHERE order_state = 40 AND liquidate_shipping_fee > 0
 AND finnshed_time > UNIX_TIMESTAMP('{start_time} 00:00:00') AND finnshed_time <= UNIX_TIMESTAMP('{end_time} 23:59:59');"
 """
 if __name__ == "__main__":
-
+    # 数据库连接信息
+    host = ''
+    user = ""
+    dbpass = ""
+    port = 3306
+    # 发送邮件用户信息
+    username = ''
+    password = ''
     # sql yaml 路径
     #sql_temp_dir = "D:\\kilimall_report\\sql"
     sql_temp_dir = "/data/auto_export_report/sqltmp"
