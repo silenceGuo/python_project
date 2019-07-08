@@ -9,8 +9,8 @@ import time
 import ConfigParser
 from optparse import OptionParser
 from subprocess import PIPE,Popen
-import JarService
 import json
+import yaml
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -37,51 +37,19 @@ def execAnsible(serverName,action,env):
     serverNameDict = projectDict[serverName]
     print " server:%s is %s now " % (serverName,action)
     # deploydir = serverNameDict["deploydir"]
+
     if env == "dev":
-        deploynode = serverNameDict["devnodename"]
-    if env == "sandbox":
-        deploynode = serverNameDict["testnodename"]
+        deploynode = serverNameDict["devNodeName"][0]
+    if env == "test":
+        deploynode = serverNameDict["testNodeName"][0]
     if env == "pro":
-        deploynode = serverNameDict["pronodename"]
-
-    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
-        deploynode, ansibleHost, python, remote_py, action, serverName, env)
-
-    stdout,stderr = execSh(cmd)
-    syncJarConf = ""
-
-    if "FAILED" in stdout:
-        print "stdout:%s" % stdout
-        print "stderr:%s" % stderr
-        print "%s %s False on %s " % (serverName, action, env)
-        return False
-    elif "FAILED" in stderr:
-        print "stdout:%s" % stdout
-        print "stderr:%s" % stderr
-        print "%s %s False on %s " % (serverName, action, env)
-        return False
-    else:
-        print "stdout:%s" % stdout
-        print "stderr:%s" % stderr
-        print "%s %s True on %s " % (serverName, action, env)
-        return True
-
-def execAnsibleTomcat(serverName,action,env):
-    serverNameDict = projectDict[serverName]
-    print " server:%s is %s now " % (serverName,action)
-    # deploydir = serverNameDict["deploydir"]
-    if env == "dev":
-        deploynode = serverNameDict["devnodename"]
-    if env == "sandbox":
-        deploynode = serverNameDict["testnodename"]
-    if env == "pro":
-        deploynode = serverNameDict["pronodename"]
-
+        deploynode = serverNameDict["proNodeName"][0]
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
         deploynode, ansibleHost, python, remote_py, action, serverName, env)
 
     stdout, stderr = execSh(cmd)
+
     if "FAILED" in stdout:
         print "stdout:%s" % stdout
         print "stderr:%s" % stderr
@@ -98,48 +66,42 @@ def execAnsibleTomcat(serverName,action,env):
         print "%s %s True on %s " % (serverName, action, env)
         return True
 
+def getDeploymentTomcatPath(serverName):
+    deployServerDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
+    deployServerWarDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "webapps/ROOT")
+    deployServerWar = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "webapps")
+    deployServerTomcatDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
+    deployServerXmlDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName,"conf/server.xml")
+    bakServerDir = os.path.join(bakDir, "%s%s") % (tomcatPrefix, serverName)
+    return {"deployServerDir":deployServerDir,
+            "deployServerWarDir":deployServerWarDir,
+            "deployServerTomcatDir":deployServerTomcatDir,
+            "deployServerXmlDir":deployServerXmlDir,
+            "bakServerDir": bakServerDir,
+            "deployServerWar": deployServerWar
+            }
+
 def deploy_node(serverName,env):
     print "发送文件至远程节点 "
-    # nodeName = projectDict[serverName]["deploygroupname"]
+    serverDict = getDeploymentTomcatPath(serverName)
+    deployServerWarDir = serverDict["deployServerWarDir"]
     serverNameDict = projectDict[serverName]
-    deployDir = serverNameDict["deploydir"]
 
     if env == "dev":
-        deploynode = serverNameDict["devnodename"]
+        deploynode = serverNameDict["devNodeName"][0]
     if env == "test":
-        deploynode = serverNameDict["testnodename"]
+        deploynode = serverNameDict["testNodeName"][0]
     if env == "pro":
-        deploynode = serverNameDict["pronodename"]
+        deploynode = serverNameDict["proNodeName"][0]
 
-    deployFile = projectDict[serverName]["jar"]
+    war = projectDict[serverName]["war"]
 
-    # deployFile = os.path.join(deployDir,deployFile)
-    # if ansibleDirIsExists(nodeName)
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (deploynode, ansibleHost, deployFile, deployDir)
+    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s owner=tomcat group=tomcat backup=yes"' % (deploynode, ansibleHost, war, deployServerWarDir)
     ReturnExec(copyFILE)
 
 def syncJarconf(deploynode,deployFile,deployDir):
-    copyFILE = 'ansible %s -i %s -m copy -a "src=%s dest=%s "' % (deploynode, ansibleHost, deployFile, deployDir)
+    copyFILE = 'ansible %s -f 5 -i %s -m copy -a "src=%s dest=%s "' % (deploynode, ansibleHost, deployFile, deployDir)
     ReturnExec(copyFILE)
-
-def deploy_node_war(serverName,env):
-    print "发送文件至远程节点 "
-    # nodeName = projectDict[serverName]["deploygroupname"]
-    serverNameDict = projectDict[serverName]
-    deployDir = serverNameDict["deploydir"]
-
-    if env == "dev":
-        deploynode = serverNameDict["devnodename"]
-    if env == "test":
-        deploynode = serverNameDict["testnodename"]
-    if env == "pro":
-        deploynode = serverNameDict["pronodename"]
-
-    deployFile = projectDict[serverName]["jar"]
-
-    CopyZipFile = "ansible %s -i %s -m unarchive -a 'src=%s dest=%s copy=yes owner=tomcat group=tomcat backup=yes'" %(deploynode,ansibleHost,deployFile,deployDir)
-    ReturnExec(CopyZipFile)
-
 
 def execAnsibleTomcat(serverName,action,env):
     serverNameDict = projectDict[serverName]
@@ -147,11 +109,11 @@ def execAnsibleTomcat(serverName,action,env):
     deploydir = serverNameDict["deploydir"]
     if env == "dev":
         deploynode = serverNameDict["devnodename"]
-    if env == "sandbox":
+    if env == "test":
         deploynode = serverNameDict["testnodename"]
     if env == "pro":
         deploynode = serverNameDict["pronodename"]
-    cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'"
+
 
     cmd = "ansible %s -i %s -m shell -a '%s %s -a %s -n %s -e %s'" % (
         deploynode, ansibleHost, python, remote_py, action, serverName, env)
@@ -228,7 +190,7 @@ def isNoErr(stdout, stderr):
 def gitupdate(serverName,branchName):
     serverNameDict = projectDict[serverName]
     # deployDir = serverNameDict["deploydir"]
-    buildDir = serverNameDict["builddir"]
+    buildDir = serverNameDict["buildDir"]
 
     os.chdir(buildDir)
     if not checkMaster(branchName):
@@ -246,19 +208,18 @@ def gitupdate(serverName,branchName):
 def buildMaven(serverName,branchName):
 
     serverNameDict = projectDict[serverName]
-    # deployDir = serverNameDict["deploydir"]
-    buildDir = serverNameDict["builddir"]
-    # print gitupdate(serverName)
-    # sys.exit()
+
+    buildDir = serverNameDict["buildDir"]
+
     if not gitupdate(serverName,branchName):
         print "git update is err"
         sys.exit(1)
-    sonar(serverName)
+    # sonar(serverName)
     os.chdir(buildDir)
     print "workdir : %s" % os.getcwd()
-     # = serverNameDict["deploydir"]
+
     cmd = "%(mvn)s clean && %(mvn)s install -Dmaven.test.skip=true -P dev" % {"mvn": mvn}
-    cmd = "mvn clean && mvn install -Dmaven.test.skip=true -P dev" % {"mvn": mvn}
+
     print "构建服务：%s" % serverName
     # sys.exit()
     stdout, stderr = execSh(cmd)
@@ -276,28 +237,6 @@ def buildMaven(serverName,branchName):
             print stderr
         return True
 
-#读取ansibel host 文件解析
-def readConfAnsible(file):
-    if not fileExists(file):
-        sys.exit()
-    cf = ConfigParser.ConfigParser(allow_no_value=True)
-    cf.read(file)
-    try:
-        cf.read(file)
-    except ConfigParser.ParsingError, e:
-        print e
-        print "请检查ansible服务主机文件 %s" % file
-        sys.exit()
-    groupNameDict = {}
-    for groupName in cf.sections():
-        iplist = []
-        # print cf.options(groupName)
-        for ipstr in cf.options(groupName):
-            ip = ipstr.split(" ansible_ssh_user")[0]
-            iplist.append(ip)
-            print groupName, ip
-        groupNameDict[groupName] = iplist
-    return groupNameDict
 
 # 解析 ansible 输出
 def parseAnsibleOut(stdout):
@@ -321,13 +260,6 @@ def ansibileSyncDir(ip,sourceDir,destDir):
     """
     ReturnExec(SyncDir)
 
-# 更新远程节点的代码适用php
-def ansibleUpdateGit(serverName):
-    print "更新主代码git代码"
-    nodeName = projectDict[serverName]["deploygroupname"]
-    deployDir = projectDict[serverName]["deploydir"]
-    UpdateDir = 'ansible %s -i %s -m shell -a "cd %s;sudo git pull"' % (nodeName, ansibileHostFile, deployDir)
-    ReturnExec(UpdateDir)
 
 def ansibileCopyZipFile(serverName):
     nodeName = projectDict[serverName]["deploygroupname"]
@@ -359,6 +291,11 @@ def fileExists(filePath):
         print "文件：%s 不存在，请检查" % filePath
         return False
     return True
+
+def readYml(file):
+    with open(file)as fd:
+       res = yaml.load(fd)
+    return res
 
 # 初始化项目主应用可用于php部署，
 def initProject(serverName):
@@ -503,7 +440,7 @@ def sonar(serverName):
 
 
 
-def main(serverName,branchName,action,envName):
+def main(serverName,branchName,action,envName,version,typeName):
 
     if action == "init":
         # 主服务项目部署 用代码分支合并，mvn 构建，在主服务器上
@@ -514,15 +451,20 @@ def main(serverName,branchName,action,envName):
     elif action == "install":
         # 用于远端机器部署项目
         execAnsible(serverName, action, envName)
+    elif action == "uninstall":
+        # 用于远端机器部署项目
+        execAnsible(serverName, action, envName)
+    elif action == "reinstall":
+        # 用于远端机器部署项目
+        execAnsible(serverName, action, envName)
     elif action == "sync":
         # 用于同步配置文件到生产远端机器部署项目
         # execAnsible(serverName, action, envName)
+        ansibileSyncDir("","")
         syncJarconf("activity", "/data/activity/jar-prod.conf", "/app/activity-test/jar.conf")
         syncJarconf("activity", "/data/activity/server-prod.conf", "/app/activity-test/server.conf")
         syncJarconf("activity", "/data/activity/JarService-prod.py", "/app/activity-test/JarService.py")
-
     elif action == "build":
-
         buildMaven(serverName, branchName)
     elif action == "deploy":
         if not buildMaven(serverName, branchName):
@@ -530,11 +472,16 @@ def main(serverName,branchName,action,envName):
             sys.exit(1)
         execAnsible(serverName, "stop", envName)
         execAnsible(serverName, "back", envName)
+        #清理部署root目录 历史部署文件
+        execAnsible(serverName, "cleanRoot", envName)
+
         # 部署新包至目标节点
         deploy_node(serverName, envName)
         if not execAnsible(serverName, "start", envName):
             sys.exit(1)
-        #execAnsible(serverName, "start", envName)
+    elif action == "send":
+        deploy_node(serverName, envName)
+
     elif action == "restart":
         execAnsible(serverName, "stop", envName)
 
@@ -554,7 +501,7 @@ def main(serverName,branchName,action,envName):
         execAnsible(serverName, action, envName)
     elif action == "rollback":
         execAnsible(serverName, action, envName)
-    elif action == "stauts":
+    elif action == "status":
         execAnsible(serverName, action, envName)
     else:
         print "action just [install,init,back,rollback，getback，start,stop,restart]"
@@ -585,43 +532,83 @@ def cleanfile(file):
     with open(file, 'w+') as fd:
         fd.write("")
 
+def getOptions():
+    parser = OptionParser()
+
+    parser.add_option("-n", "--serverName", action="store",
+                      dest="serverName",
+                      default=False,
+                      help="serverName to do")
+
+    parser.add_option("-a", "--action", action="store",
+                      dest="action",
+                      default=False,
+                      help="action -a [deploy,install,uninstall,reinstall,stop,start,restart,back,rollback,getback]")
+
+    parser.add_option("-v", "--versionId", action="store",
+                      dest="versionId",
+                      default=False,
+                      help="-v versionId")
+    parser.add_option("-e", "--envName", action="store",
+                      dest="envName",
+                      default=False,
+                      help="-e envName")
+    parser.add_option("-t", "--typeName", action="store",
+                      dest="typeName",
+                      default=False,
+                      help="-t typeName")
+    parser.add_option("-b", "--branchName", action="store",
+                      dest="branchName",
+                      default=False,
+                      help="-b branchName")
+    options, args = parser.parse_args()
+    return options, args
+
+# 输出服务配置文件中的服务名
+def printServerName(projectDict):
+
+    serverlist = sorted(projectDict.keys())
+    for serverName in serverlist:
+        print "可执行服务名：%s" % serverName
+    return serverlist
+
 if __name__ == "__main__":
-    serverconf = "server.conf"
-    confDict = JarService.init(serverconf)["conf"]
-    # print confDict
-    global mvn, java, nohup, ansibleHost, python, remote_py
+    # serverconf = "server.conf"
+    serverconf = "serverConf.yml"
+    confDict = readYml(serverconf)
 
     mvn = confDict["mvn"]
-    remote_py = confDict["remote_py"]
+    remote_py = confDict["remotePy"]
     python = confDict["python"]
     java = confDict["java"]
     nohup = confDict["nohup"]
-    startConf = confDict["start_server"]
-    ansibleHost = confDict["ansibile_host"]
-    jarConf = confDict["jar_conf"]
+    deploymentAppDir = confDict["deploymentAppDir"]
+    startConf = confDict["startServer"]
+    ansibleHost = confDict["ansibileHost"]
+    warConf = confDict["warConf"]
+    tomcatPrefix = confDict["tomcatPrefix"]
+    bakDir = confDict["bakDir"]
 
-    projectDict = JarService.readConf(jarConf)
-    options, args = JarService.getOptions()
+    projectDict = readYml(warConf)
+
+    options, args = getOptions()
     action = options.action
-    # version = options.versionId
+    version = options.versionId
     serverName = options.serverName
     branchName = options.branchName
+    typeName = options.typeName
     envName = options.envName
     if not action:
         print "参数执行操作 -a action [install,init,back,rollback，getback，start,stop,restart]"
         sys.exit(1)
     elif not serverName:
         print "参数服务名 -n servername "
-        JarService.printServerName(projectDict)
+        printServerName(projectDict)
         sys.exit(1)
     elif not envName:
         print "参数执行操作 -e envName [dev,test,pro]"
         sys.exit(1)
     else:
-        # if action != "init" or action != "build" or action != "merge":
-        #     if not envName:
-        #         print "参数执行操作 -e envName [dev,test,pre]"
-        #         sys.exit()
 
         if serverName == "all":
             if readfile(startConf):
@@ -632,17 +619,16 @@ if __name__ == "__main__":
             serverlist = sorted(projectDict.keys())
 
             # 从上次执行失败的位置开始执行
-
             for serName in serverlist[int(point):]:
                 ser_index = serverlist.index(serName)
                 info = "%s:%s" % (ser_index, serName)
                 writhfile(startConf, info)
-                main(serName, branchName, action, envName)
+                main(serName, branchName, action, envName, version,typeName)
             cleanfile(startConf)
 
         else:
             if not projectDict.has_key(serverName):
                 print "没有服务名：%s" % serverName
-                JarService.printServerName(projectDict)
+                printServerName(projectDict)
                 sys.exit(1)
-            main(serverName, branchName, action, envName)
+            main(serverName, branchName, action, envName, version, typeName)

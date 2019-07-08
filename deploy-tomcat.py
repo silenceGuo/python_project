@@ -19,15 +19,6 @@ import yaml
 from optparse import OptionParser
 reload(sys)
 sys.setdefaultencoding('utf-8')
-serverConf_test = "startServer.yml"  # 部署配置文件
-deploymentAppDir = "/app/"  # 部署工程目录存放tomcat
-bakDir = "/app/bak/"  # 备份上一次的应用目录
-baseTomcat = "/app/tomcat-8.5/"
-tomcatPrefix = ""
-ansibleHostFile = "/data/jks/host/iplist"
-
-checktime = 2  # 等待时间 和检查状态次数
-keepBakNum = 5  # 备份war包保留版本数
 
 def getOptions():
     parser = OptionParser()
@@ -47,10 +38,10 @@ def getOptions():
                       default=False,
                       help="-v versionId")
 
-    parser.add_option("-g", "--groupName", action="store",
-                      dest="groupName",
+    parser.add_option("-e", "--envName", action="store",
+                      dest="envName",
                       default=False,
-                      help="-g groupName")
+                      help="-e envName")
 
     parser.add_option("-t", "--typeName", action="store",
                       dest="typeName",
@@ -63,6 +54,7 @@ def getOptions():
 def getDeploymentTomcatPath(serverName):
     deployServerDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
     deployServerWarDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "webapps/ROOT")
+    deployServerWar = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName, "webapps")
     deployServerTomcatDir = os.path.join(deploymentAppDir, "%s%s") % (tomcatPrefix, serverName)
     deployServerXmlDir = os.path.join(deploymentAppDir, "%s%s/%s") % (tomcatPrefix, serverName,"conf/server.xml")
     bakServerDir = os.path.join(bakDir, "%s%s") % (tomcatPrefix, serverName)
@@ -70,11 +62,13 @@ def getDeploymentTomcatPath(serverName):
             "deployServerWarDir":deployServerWarDir,
             "deployServerTomcatDir":deployServerTomcatDir,
             "deployServerXmlDir":deployServerXmlDir,
-            "bakServerDir": bakServerDir
+            "bakServerDir": bakServerDir,
+            "deployServerWar": deployServerWar
             }
 
 def _init(confPath):
     # 初始化基础目录
+
 
     if not os.path.exists(deploymentAppDir):
         os.makedirs(deploymentAppDir)
@@ -100,7 +94,7 @@ def _init(confPath):
 
 def getDir(dir):
     l1 = []
-    for (root,dirs,files) in os.walk(dir, False):
+    for (root, dirs, files) in os.walk(dir, False):
         for filename in files:
             abs_path = os.path.join(root, filename)
             l1.append(abs_path)
@@ -134,7 +128,6 @@ def chekPort():
             portList.append(shutdown_port)
             portList.append(ajp_port)
 
-    print portList
     for port, num in Counter(portList).iteritems():
         if num > 1:
             print "%s is duplicated" % port
@@ -171,8 +164,6 @@ def installServer(serverName):
                     deployDir = getDeploymentTomcatPath(serverName)["deployServerDir"]  # 部署工程目录
                     print deployDir
                     # sys.exit()
-
-
                     # 从标准tomcat 复制到部署目录
                     copyBaseTomcat(serverName)
                     # 修改部署tomcat server.xml配置文件
@@ -190,15 +181,6 @@ def installServer(serverName):
     else:
         print "%s is installed" % serverName
 
-def chown(serverName):
-    chownCmd = "chown -R tomcat:tomcat %s" % deployDir  # 目录权限修改
-    changeXml(serverName, shutdown_port=shutdown_port, http_port=http_port, ajp_port=ajp_port)
-    stdout, stderr = execSh(chownCmd)
-    if stdout:
-        print stdout
-    if stderr:
-        print stderr
-    print"%s install sucess" % serverName
 
 def uninstallServer(serverName):
     # serverNameDictList = readConf(serverConfPath)
@@ -274,11 +256,6 @@ def unzipWar(zipfilePath,unzipfilepath):
         f.extract(file, unzipfilepath)
 
 def startServer(serverName):
-    # for serverNameDict in serverNameDictList:
-    #     for serverNam,portDict in serverNameDict.iteritems():
-    #         if serverNam == serverName:
-    #             war = portDict["war"]
-    #             break
 
     deployDir = getDeploymentTomcatPath(serverName)["deployServerTomcatDir"]
     startSh = os.path.join(deployDir, "bin/startup.sh")
@@ -315,6 +292,7 @@ def startServer(serverName):
 def cleanDeployDir(serverName):
 
     deploymentAppPath = getDeploymentTomcatPath(serverName)["deployServerDir"]
+    print deploymentAppDir
     try:
         shutil.rmtree(deploymentAppPath)
         print "clean %s" % deploymentAppPath
@@ -426,8 +404,8 @@ def cleanHistoryBak(serverName):
     VersinIdList = getVersion(serverName)
     # print VersinIdList
     if VersinIdList:
-        if len(VersinIdList) > int(keepBakNum):
-            cleanVersionList = VersinIdList[0:abs(len(VersinIdList) - int(keepBakNum))]
+        if len(VersinIdList) > int(bakNum):
+            cleanVersionList = VersinIdList[0:abs(len(VersinIdList) - int(bakNum))]
             for i in cleanVersionList:
                 bakWarPath = os.path.join(bakServerDir, "war.%s") % i
                 if os.path.exists(bakWarPath):
@@ -456,6 +434,17 @@ def copyDir(sourDir,disDir):
     except Exception, e:
         print e,
         sys.exit(1)
+
+
+def cleanROOT(serverName):
+    deployWar = getDeploymentTomcatPath(serverName)["deployServerWarDir"]
+
+    if os.path.exists(deployWar):
+        print "clean history ROOT dir: %s" % deployWar
+        # os.remove(bakWarPath)
+        shutil.rmtree(deployWar)
+    if not os.path.exists(deployWar):
+         os.makedirs(deployWar)
 
 
 def backWar(serverName):
@@ -511,7 +500,7 @@ def rollBack(serverName,versionId=""):
         if not versionId:
             versionId = versionList[-1]
 
-        bakdeployWar = os.path.join(dirDict["bakServerDir"],"war.%s") % ( versionId)
+        bakdeployWar = os.path.join(dirDict["bakServerDir"], "war.%s") % (versionId)
 
         deployRootWar = dirDict["deployServerWarDir"]
 
@@ -536,80 +525,40 @@ def rollBack(serverName,versionId=""):
         else:
             print "check File:%s ,rollback Faile" % deployRootWar
 
-def readConfAnsible(file):
-    cf = ConfigParser.ConfigParser(allow_no_value=True)
-    cf.read(file)
-    try:
-        cf.read(file)
-    except ConfigParser.ParsingError, e:
-        print e
-        print "please check conf %s" % file
-        sys.exit()
-    groupNameDict = { }
-    for groupName in cf.sections():
-        iplist = []
-        for ip in cf.options(groupName):
-            iplist.append(ip)
-            # print groupName, ip
-        groupNameDict[groupName] = iplist
-    return groupNameDict
+def ReturnExec(cmd):
+    stdout, stderr = execSh(cmd)
+    if stdout:
+        print 80*"#"
+        print "out:%s " % stdout
+    if stderr:
+        print 80*"#"
+        print "err:%s" % stderr
 
 def sendWarToNode(serverName,envName):
-    if not os.path.exists(ansibleHostFile):
-        print "serverconf is not exists,check serverconf %s " % ansibleHostFile
-        print """ %s like this:
-                           [test]
-                           192.168.0.159
-                           192.168.0.59""" % ansibleHostFile
-        print "%s is not exists" % (ansibleHostFile)
-        sys.exit()
-    serverList = []
+    # deploynode = serverNameDict[serverName][]
+    serverDict = getDeploymentTomcatPath(serverName)
+    deployServerWarDir = serverDict["deployServerWarDir"]
+    print serverDict
+    # startNum = serverDict['startNum']
 
-    for serverNameDict in serverNameDictList:
+    war = serverDict["war"]
 
-        for serName, optionsDict in serverNameDict.iteritems():
-            serverList.append(serName)
-    if serverName not in serverList:
-        print "%s is err in %s" % (serverName, serverConfPath)
+    if envName == "test":
+        deployNode = serverNameDict[serverName]["testNodeName"]
 
-    getDeploymentTomcatPath(serverName)
-    groupDict = readConfAnsible(ansibleHostFile)  # 回去执行IP
-    tomcatWar = getDeploymentTomcatPath(serverName)["deployServerWarDir"] #下发的目标路径
-    try:
-        iplist = groupDict[envName]
-    except:
-        print "check file: %s" % ansibleHostFile
+    elif envName == "dev":
+        deployNode = serverNameDict[serverName]["devNodeName"]
+    elif envName == "pro":
+        deployNode = serverNameDict[serverName]["proNodeName"]
+    else:
+        print("not env name")
         sys.exit()
 
+    CopyZipFile = "ansible  %s -f 5 -i %s -m unarchive -a 'src=%s dest=%s copy=yes owner=tomcat group=tomcat backup=yes'" % (
+        deployNode, ansibleHost, war, deployServerWarDir)
+    ReturnExec(CopyZipFile)
 
-
-    """ansible test -m shell -a "/usr/bin/python /data/init/deploytomcat.py -a back -n comments-test" --inventory-file=/data/init/conf.test --sudo"""
-
-    for serverNameDict in serverNameDictList:
-        for serName, portDict in serverNameDict.iteritems():
-            if serverName == serName:
-                try:
-                    warFile = portDict["war"]
-                except:
-                    print "%s is war is err" % serverConf
-                    break
-                if not os.path.exists(warFile):
-                    print "%s is not exists" % warFile
-                    sys.exit()
-
-                # for ip in iplist:
-                #     print "send %s to %s %s" % (warFile, ip, tomcatWar)
-
-                # cmd = "/usr/local/bin/ansible-playbook %s --extra-vars 'host=%s war_file=%s tomcat_war=%s'" % (ansibleYaml, ip, warFile, tomcatWar)
-                cmd = "sudo /usr/local/bin/ansible-playbook -i %s %s --extra-vars 'host=%s war_file=%s tomcat_war=%s'" % (ansibleHostFile, ansibleYaml, groupName, warFile, tomcatWar)
-                stdout, stderr = execSh(cmd)
-                if stderr:
-                    print stderr
-                if stdout:
-                    print stdout
-                break
-
-def main(action,serverName,version,env):
+def main(action,serverName,version,envName):
     # action = action.lower()
     # print action
     if action =="install":
@@ -629,18 +578,22 @@ def main(action,serverName,version,env):
         installServer(serverName)
     elif action == "back":
         backWar(serverName)
+    elif action == "cleanRoot":
+        cleanROOT(serverName)
+    elif action == "status":
+        if not getPid(serverName):
+            print "%s is stoped" % serverName
     elif action == "rollback":
         stopServer(serverName)
-        rollBack(serverName,version)
+        rollBack(serverName, version)
         startServer(serverName)
     elif action == "getback":
         versionlist = getVersion(serverName)
         if not versionlist:
             print "%s not back" % serverName
         else:
-            print "%s has back version:%s" % (serverName,versionlist)
-    elif action == "deploy":
-        sendWarToNode(serverName, groupName)
+            print "%s has back version:%s" % (serverName, versionlist)
+
     else:
         print "action is -a [deploy,install,uninstall,reinstall,stop,start,restart,back,rollback,getback] -n servername [all]"
         sys.exit(1)
@@ -648,20 +601,37 @@ def main(action,serverName,version,env):
 
 if __name__ == "__main__":
 
+    # serverConf_test = "startServer.yml"  # 部署配置文件
+    serverconf = "/python-project/python_project/serverConf.yml"
+    confDict = readYml(serverconf)
+
+    mvn = confDict["mvn"]
+    remote_py = confDict["remotePy"]
+    tomcatPrefix = confDict["tomcatPrefix"]
+    baseTomcat = confDict["baseTomcat"]
+    deploymentAppDir = confDict["deploymentAppDir"]
+    python = confDict["python"]
+    checktime = confDict["checkTime"]
+    java = confDict["java"]
+    nohup = confDict["nohup"]
+    startConf = confDict["startServer"]
+    ansibleHost = confDict["ansibileHost"]
+    bakDir = confDict["bakDir"]
+    bakNum = confDict["bakNum"]
+    warConf = confDict["warConf"]
+
     options, args = getOptions()
     action = options.action
     version = options.versionId
     serverName = options.serverName
-    groupName = options.groupName
-    # print (readYml(serverConf_test))
-    # sys.exit()
-    _init(serverConf_test)
+    envName = options.envName
 
+    _init(warConf)
 
     if serverName == "all":
         for serverNameDict in serverNameDictList:
             for seName, portDict in serverNameDict.iteritems():
-                 main(action, seName, version, groupName)
+                 main(action, seName, version, envName)
     else:
-        main(action, serverName, version,groupName)
+        main(action, serverName, version, envName)
 

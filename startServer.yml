@@ -7,12 +7,30 @@ erueka1:
     testNodeName:
         - host_test
     devNodeName:
-        - node2
+        - dev
     proNodeName:
         - node1
-    war: platform-kedms.war
+    war: /app/jenkins-2.150.1-1.1.noarch.rpm
     http_port: 8030
     ajp_port: 8031
     shutdown_port: 8032
+    xms: 512m
+    xmx: 512m
+
+erueka2:
+    startNum: 2
+    buildDir: /app/erueka1-build
+    deployDir: /app/erueka2
+    giturl: tes.url
+    testNodeName:
+        - host_test
+    devNodeName:
+        - dev
+    proNodeName:
+        - node1
+    war: platform-kedms.war
+    http_port: 8040
+    ajp_port: 8041
+    shutdown_port: 8042
     xms: 512m
     xmx: 512m
